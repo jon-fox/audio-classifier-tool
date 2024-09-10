@@ -1,0 +1,33 @@
+services:
+  my-service:
+    image: ${DOCKER_IMAGE_URI}
+    ports:
+      - "80:80"
+      - "443:443"
+    deploy:
+      replicas: 1
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    # runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all  # Or specify particular GPUs, e.g., "0,1"
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # If additional capabilities are needed
+
+
+
+# docker stack deploy -c docker-compose.yml my_stack
+# export AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
+# export AWS_CONFIG_FILE=/root/.aws/config
+
+# iamadmin
+# export aws_access_key_id=AKIAVRUVUIGDNZY6FSKF
+# export aws_secret_access_key=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
+
+# iam role
+# external-id = 97e78082-e19b-43ab-8697-4a74943197c6
+# role-arn = arn:aws:iam::381492150662:role/docker-external-app
+
+# need to make sure we have admin profile keys set
+# aws sts assume-role --role-arn arn:aws:iam::381492150662:role/docker-external-app --role-session-name ssm  --external-id 97e78082-e19b-43ab-8697-4a74943197c6 --profile admin

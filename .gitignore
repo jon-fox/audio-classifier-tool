@@ -1,0 +1,32 @@
+# Ignore virtual environment directories
+venv/
+downloads/
+local_models/
+
+# Ignore mp3 files
+*.mp3
+*.wav
+*.txt
+*.json
+*.whl
+*info
+*.log
+*.db
+*.pyc
+*.out
+*build/*
+src/db_utils/podcastindex_feeds.db
+src/db_utils/podcasts.csv
+src/pod_handler/audio_classifier.py
+src/pod_handler/cuda_12.4.1_550.54.15_linux.run
+src/db_utils/podcastindex_feeds.sqbpro
+src/pod_handler/__pycache__/mp3_converter.cpython-310.pyc
+src/__pycache__/__init__.cpython-310.pyc
+src/db_utils/__pycache__/__init__.cpython-310.pyc
+src/db_utils/__pycache__/db.cpython-310.pyc
+tests/db_utils_test/__pycache__/db_test.cpython-310.pyc
+podcastindex_feeds.db
+database_dump_postgres.sql
+database_dump.sql
+nohup.out
+local_models/tiny/whisper/tiny.pt
