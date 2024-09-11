@@ -27,7 +27,7 @@ CDN_BASE_URL = os.getenv("CDN_URL")
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
 
 
-async def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
+def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
     try:
@@ -36,10 +36,9 @@ async def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
         mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
         logger.info(f"Json data from Taddy API::{json_data}")
         logger.info(f"File uploaded to Space::{BUCKET_NAME}, Episode::{episode_hash}, CDN URL::{cdn_url}")
-        # Return CDN URL
-        return StreamingResponse(iterAudiofile(cdn_url), media_type="audio/mpeg")
-    except NoCredentialsError:
-        raise HTTPException(status_code=500, detail="Could not upload file to Space")
+    except Exception as e:
+        logger.error(f"Error processing MP3 file::{e}")
+        raise e
 
 
 def process_payload():
