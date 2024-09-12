@@ -3,6 +3,7 @@ from src.utils.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 import json
 import src.db_utils.write_to_db as write_to_db
+import boto3
 
 
 # uvicorn app:app --reload
@@ -10,11 +11,12 @@ import src.db_utils.write_to_db as write_to_db
 # http://localhost:8000/stream?podcast_name=Darknet%20Diaries
 # http://localhost:8000/stream?podcast_name=The%20Jimmy%20DORE%20Show
 
+ssm = boto3.client('ssm', region_name='us-east-1')
 
 # Configuration
-REGION = os.getenv("REGION")
-BUCKET_NAME = os.getenv("BUCKET_NAME")
-CDN_BASE_URL = os.getenv("CDN_URL")
+REGION = os.getenv("REGION", "us-east-1")
+BUCKET_NAME = ssm.get_parameter(Name="/app/app_storage_bucket")['Parameter']['Value']
+CDN_BASE_URL = ssm.get_parameter(Name="/cloudfront/distribution/url")['Parameter']['Value']
 
 # sample cdn url, first part is the cloudfront distribution, 
 # the path is the s3 key path
@@ -36,9 +38,10 @@ def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
         raise e
 
 
-def process_payload():
+def process_payload(payload={}):
     # Retrieve the payload from the environment variable
-    payload = json.loads(os.getenv('PAYLOAD'))
+    payload = json.loads(os.getenv('PAYLOAD', payload))
+    logger.info(f"Received payload::{payload}")
 
     if payload:
         # Convert the payload from string to dictionary
@@ -46,8 +49,8 @@ def process_payload():
         logger.info(f"Received payload: {payload}")
 
         # Process the payload
-        podcast_name = payload.get('podcast_name')
-        episode_name = write_to_db.sanitize_name(payload.get('episode_name'))
+        podcast_name = write_to_db.sanitize_name(payload.get('podcast_name'))
+        episode_name = payload.get('episode_name')
         audio_url = payload.get('audio_url')
         logger.info(f"Processing podcast_name: {podcast_name}, "
                     f"episode_name: {episode_name}, "
