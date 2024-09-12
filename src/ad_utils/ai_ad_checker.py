@@ -18,7 +18,7 @@ import os
 
 try:
     ssm = boto3.client('ssm', region_name='us-east-1')
-    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key")['Parameter']['Value']
+    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)['Parameter']['Value']
 except Exception as e:
     logger.error(f"Error getting OpenAI API Key: {e}")
     raise e

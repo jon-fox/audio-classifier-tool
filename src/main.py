@@ -23,7 +23,7 @@ CDN_BASE_URL = ssm.get_parameter(Name="/cloudfront/distribution/url")['Parameter
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
 
 
-def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
+def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
     try:
@@ -40,12 +40,11 @@ def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
 
 def process_payload(payload={}):
     # Retrieve the payload from the environment variable
-    payload = json.loads(os.getenv('PAYLOAD', payload))
+    # payload = json.loads(os.getenv('PAYLOAD', payload))
     logger.info(f"Received payload::{payload}")
 
     if payload:
         # Convert the payload from string to dictionary
-        payload = json.loads(payload)
         logger.info(f"Received payload: {payload}")
 
         # Process the payload
@@ -56,8 +55,8 @@ def process_payload(payload={}):
         logger.info(f"Processing podcast_name: {podcast_name}, "
                     f"episode_name: {episode_name}, "
                     f"audio_url: {audio_url}")
-        hashkey = write_to_db.generate_hash_key(podcast_name, episode_name)
-        mp3_handler(podcast_name=podcast_name, hashkey=hashkey, audio_url=audio_url)
+        episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
+        prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
     else:
         logger.info("No payload received")
 
