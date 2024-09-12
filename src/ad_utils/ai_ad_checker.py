@@ -8,12 +8,21 @@ from src.config.constants import CONFIDENCE_SCORE
 import time
 import backoff
 from src.utils.logger_setup import logger
+import boto3
+import os
 # from threading import Lock
 # from model.conversation_storage import store_conversation
 # from langchain_community.document_loaders import PyPDFLoader
 # from langchain_community.vectorstores import FAISS
 # from langchain_openai import OpenAIEmbeddings
 
+try:
+    ssm = boto3.client('ssm', region_name='us-east-1')
+    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key")['Parameter']['Value']
+    os.setenv("OPENAI_API_KEY")
+except Exception as e:
+    logger.error(f"Error getting OpenAI API Key: {e}")
+    raise e
 
 client = OpenAI()
 # client = AsyncOpenAI()

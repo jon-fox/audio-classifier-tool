@@ -49,6 +49,7 @@ def process_payload(payload={}):
         logger.info(f"Received payload: {payload}")
 
         # Process the payload
+        logger.info(f"Podcast before sanitization::{payload.get('podcast_name')}")
         podcast_name = write_to_db.sanitize_name(payload.get('podcast_name'))
         episode_name = payload.get('episode_name')
         audio_url = payload.get('audio_url')
