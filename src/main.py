@@ -1,15 +1,8 @@
 import os
-import httpx
 from src.utils.logger_setup import logger
-from urllib.parse import quote, unquote
 from src.pod_handler.mp3_handler import mp3_handler
-import datetime
 import json
-from pydantic import BaseModel
-import aiohttp
-from urllib.parse import urlparse, urlunparse
-import uvicorn
-import multiprocessing
+import src.db_utils.write_to_db as write_to_db
 
 
 # uvicorn app:app --reload
@@ -23,7 +16,8 @@ REGION = os.getenv("REGION")
 BUCKET_NAME = os.getenv("BUCKET_NAME")
 CDN_BASE_URL = os.getenv("CDN_URL")
 
-# sample cdn url, first part is the cloudfront distribution, the path is the s3 key path
+# sample cdn url, first part is the cloudfront distribution, 
+# the path is the s3 key path
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
 
 
@@ -35,7 +29,8 @@ def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
         cdn_url = f"{CDN_BASE_URL}/{s3_path}"
         mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
         logger.info(f"Json data from Taddy API::{json_data}")
-        logger.info(f"File uploaded to Space::{BUCKET_NAME}, Episode::{episode_hash}, CDN URL::{cdn_url}")
+        logger.info(f"File uploaded to Space::{BUCKET_NAME}, " 
+                    f"Episode::{episode_hash}, CDN URL::{cdn_url}")
     except Exception as e:
         logger.error(f"Error processing MP3 file::{e}")
         raise e
@@ -43,19 +38,29 @@ def get_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
 
 def process_payload():
     # Retrieve the payload from the environment variable
-    payload_str = os.getenv('PAYLOAD')
+    payload = json.loads(os.getenv('PAYLOAD'))
 
-    if payload_str:
+    if payload:
         # Convert the payload from string to dictionary
-        payload = json.loads(payload_str)
+        payload = json.loads(payload)
         logger.info(f"Received payload: {payload}")
 
         # Process the payload
-        key1 = payload.get('key1')
-        key2 = payload.get('key2')
-        logger.info(f"Processing key1: {key1}, key2: {key2}")
+        podcast_name = payload.get('podcast_name')
+        episode_name = write_to_db.sanitize_name(payload.get('episode_name'))
+        audio_url = payload.get('audio_url')
+        logger.info(f"Processing podcast_name: {podcast_name}, "
+                    f"episode_name: {episode_name}, "
+                    f"audio_url: {audio_url}")
+        hashkey = write_to_db.generate_hash_key(podcast_name, episode_name)
+        mp3_handler(podcast_name=podcast_name, hashkey=hashkey, audio_url=audio_url)
     else:
         logger.info("No payload received")
 
 if __name__ == "__main__":
-    process_payload()
+    payload = {
+        "podcast_name": "Candace",
+        "episode_name": "Trump VS Kamala: The Unexpected Winner… | Candace Ep 62",
+        "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC1881985008.mp3?updated=1726094456"
+    }
+    process_payload(payload)
