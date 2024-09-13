@@ -1,6 +1,6 @@
 from psycopg2 import sql
 from src.db_utils.db_get_conn import get_db_connection
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 import hashlib
 
 

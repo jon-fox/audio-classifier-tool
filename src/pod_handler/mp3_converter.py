@@ -8,7 +8,7 @@ import time
 from queue import Queue
 from src.config.constants import *
 from src.ad_utils.ai_ad_checker import get_specific_timestamps_using_llm, get_run_output
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 
 # import whisper
 # import re
@@ -17,6 +17,8 @@ from src.utils.logger_setup import logger
 # be careful with these, results in larger token cost to ai model
 START_AD_BUFFER = 15
 END_AD_BUFFER = 15
+
+MINIMUM_AD_SKIP_TIME = 15 # Minimum time to skip an ad segment
 
 import threading
 # lock = threading.Lock()
@@ -233,9 +235,9 @@ def process_audio_segment(index, audio_segment):
     # Slice audio before and after the ad
     os.remove(segment_path)
     if min_ms == float('inf') and max_ms == float('-inf'):
-        logger.info("No ads found in the segment")
+        logger.info(f"No ads found in the segment for transcript transcript_{index}_logging.json")
         return audio_segment
-    elif max_ms - min_ms < 20:
+    elif max_ms - min_ms < MINIMUM_AD_SKIP_TIME:
         logger.info("Skipping segment with less than 20 seconds of ads, likely false positive")
         return audio_segment
     else:
@@ -266,7 +268,7 @@ def process_audio_segment(index, audio_segment):
 
 
         if min_ms == float('inf') and max_ms == float('-inf'):
-            logger.info("No ads found in the segment")
+            logger.info(f"No ads found in the segment for transcript transcript_{index}_logging.json")
             return audio_segment
 
         # TODO grabbing the ad segment TEXT and saving it to a file

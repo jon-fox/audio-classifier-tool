@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from selenium.webdriver.firefox.options import Options
 from selenium import webdriver
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 
 # Set up Firefox options
 options = Options()

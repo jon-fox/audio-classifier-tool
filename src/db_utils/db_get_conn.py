@@ -1,7 +1,7 @@
 import psycopg2
 import boto3
 from src.config.constants import DB_INFO
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 import os
 import json
 

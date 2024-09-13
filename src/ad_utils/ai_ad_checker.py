@@ -7,7 +7,7 @@ from pprint import pprint
 from src.config.constants import CONFIDENCE_SCORE
 import time
 import backoff
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 import boto3
 import os
 # from threading import Lock

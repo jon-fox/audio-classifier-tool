@@ -1,5 +1,5 @@
 import os
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 import json
 import src.db_utils.write_to_db as write_to_db

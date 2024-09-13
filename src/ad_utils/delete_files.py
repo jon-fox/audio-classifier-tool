@@ -1,6 +1,6 @@
 from openai import OpenAI
 import datetime
-# from src.utils.logger_setup import logger
+# from src.logger.logger_setup import logger
 
 # Initialize the OpenAI client
 client = OpenAI()

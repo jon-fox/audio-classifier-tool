@@ -1,5 +1,5 @@
 import boto3
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 
 
 def upload_file_to_space(bucket_name, s3_key, local_path):

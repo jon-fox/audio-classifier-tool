@@ -2,7 +2,7 @@ import requests
 import podcastindex
 from pprint import pprint
 import argparse
-from src.utils.logger_setup import logger
+from src.logger.logger_setup import logger
 
 # Key: GA68D5DTDRRBWHDYZ57Z
 # Secret: ZZTpQdc5br#dx3R$88p5$uQS9cHtzYkMWBMDpYee
