@@ -16,6 +16,7 @@ def get_db_connection():
         secret_response = secrets_client.get_secret_value(SecretId=DB_INFO['secret_arn'])
         secret_string = secret_response['SecretString']
         secret = json.loads(secret_string)
+        logger.info(f"Secret retrieved successfully")
 
         # Extract the username and password from the secret
         db_username = secret['username']
@@ -23,6 +24,8 @@ def get_db_connection():
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         ca_cert_path = os.path.join(script_dir, '../../certs/us-east-1-bundle.pem')
+
+        logger.info(f"Connecting to database::{DB_INFO['dbname']}")
 
         # Connect to the PostgreSQL database using the IAM token and CA certificate
         connection = psycopg2.connect(
@@ -34,6 +37,7 @@ def get_db_connection():
             sslmode='require',
             sslrootcert=ca_cert_path
         )
+        logger.info(f"Connected to database successfully")
     except Exception as e:
         logger.error(f"Error connecting to database: {e}")
         raise e

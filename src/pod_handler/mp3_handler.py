@@ -14,6 +14,7 @@ from src.db_utils import write_to_db
 try:
     ssm = boto3.client('ssm', 'us-east-1')
     BUCKET_NAME = ssm.get_parameter(Name='/app/app_storage_bucket')['Parameter']['Value']
+    logger.info(f"Bucket name::{BUCKET_NAME}")
 except Exception as e:
     logger.error(f"Error getting SSM parameters: {e}")
     raise e   
@@ -39,6 +40,9 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
     file_size, local_path = download_episode(saved_episode_name, audio_url, DOWNLOAD_DIR)
 
     podcast_length, original_duration = remove_ads_from_audio(audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name))
+
+    logger.info(f"Episode {saved_episode_name} has been processed, ads removed, new duration: "
+                f"{podcast_length} vs original duration: {original_duration}")
 
     end_time = time.time()
 

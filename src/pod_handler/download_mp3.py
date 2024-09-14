@@ -5,6 +5,7 @@ from src.logger.logger_setup import logger
 
 def download_episode(episode_name, audio_url, save_path):
     # Extracting the episode name or ID for the filename; adjust as needed
+    logger.info(f"Downloading episode {episode_name} from {audio_url}")
 
     # Define the full path for the saved file
     if not os.path.exists(save_path):
