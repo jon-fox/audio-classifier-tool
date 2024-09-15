@@ -1,9 +1,16 @@
 from openai import OpenAI
 import datetime
+import boto3
 # from src.logger.logger_setup import logger
 
-# Initialize the OpenAI client
-client = OpenAI()
+try:
+    ssm = boto3.client('ssm', region_name='us-east-1')
+    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)['Parameter']['Value']
+except Exception as e:
+    print(f"Error getting SSM parameters: {e}")
+    raise e
+
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 def upload_file():
     filename = input("Enter the filename to upload: ")
