@@ -212,7 +212,7 @@ def process_audio_segment(index, audio_segment):
         # model = whisper.load_model("tiny", device="cuda")
         
         model = model_pool.get(block=True) # Wait until a model is available
-        logger.info(f"Thread using model {id(model)}")
+        logger.info(f"Thread using model {id(model)}, processing transcript_{index}_logging.json")
         segment_path = f"segment_{index}.wav"
         audio_segment.export(segment_path, format="wav")
         result = whisper.transcribe(model, segment_path, language="en")
@@ -224,12 +224,12 @@ def process_audio_segment(index, audio_segment):
     except Exception as e:
         import traceback
         logger.error(traceback.print_exc())
-        raise Exception(f"An error occurred during Transcription: {str(e)}")
+        raise Exception(f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}")
 
     # logger.info(f"ad timestamps: {ad_timestamps}")
     logger.info(f"##############################################")
-    logger.info(f"Segment {index}")
-    logger.info(f"min_ms: {min_ms}, max_ms: {max_ms}")
+    logger.info(f"Segment {index}, for transcript_{index}_logging.json")
+    logger.info(f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}_logging.json")
     logger.info(f"##############################################")
 
     # Slice audio before and after the ad
@@ -238,7 +238,7 @@ def process_audio_segment(index, audio_segment):
         logger.info(f"No ads found in the segment for transcript transcript_{index}_logging.json")
         return audio_segment
     elif max_ms - min_ms < MINIMUM_AD_SKIP_TIME:
-        logger.info("Skipping segment with less than 20 seconds of ads, likely false positive")
+        logger.info("Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}_logging.json")
         return audio_segment
     else:
         # TODO commented out for now, need to test transcript logging
@@ -264,7 +264,8 @@ def process_audio_segment(index, audio_segment):
             logger.info(f"Put prompts into assistant thread openai thread {thread.id} and polling run {run.id}")
             min_ms, max_ms, confidence_score = get_run_output(run=run, thread=thread)
             logger.info(f"Thread {threading.get_ident()} has exited the openai api call for file transcript_{index}_logging.json")
-            logger.info(f"OpenAI Thread {thread.id} and Run {run.id}:: Finished with values MIN[{min_ms}], MAX[{max_ms}], and Confidence Score [{confidence_score}]")
+            logger.info(f"OpenAI Thread {thread.id} and Run {run.id}:: Finished with values MIN[{min_ms}], MAX[{max_ms}], 
+                        and Confidence Score [{confidence_score}], transcript_{index}_logging.json")
 
 
         if min_ms == float('inf') and max_ms == float('-inf'):
@@ -282,13 +283,13 @@ def process_audio_segment(index, audio_segment):
         end_ads_ms = round(max_ms * 1000)
 
         if start_ads_ms < 0:
-            logger.info("Start time is less than 0 or None, setting to 0", start_ads_ms)
+            logger.info("transcript_{index}_logging.json Start time is less than 0 or None, setting to 0", start_ads_ms)
             start_ads_ms = 0
         if end_ads_ms > len(audio_segment):
-            logger.info("End time is greater than segment duration or None, setting to segment duration", end_ads_ms)
+            logger.info(f"transcript_{index}_logging.json End time is greater than segment duration or None, setting to segment duration", end_ads_ms)
             end_ads_ms = len(audio_segment)
         # audio = AudioSegment.from_wav("sliced_result.wav")
-        logger.info(f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}")
+        logger.info(f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json")
 
         audio_before_ad = audio_segment[:start_ads_ms]
         audio_after_ad = audio_segment[end_ads_ms:]
@@ -353,7 +354,7 @@ def remove_ads_from_audio(audio_file):
         results = []
         for future in concurrent.futures.as_completed(future_to_segment):
             segment_index = future_to_segment[future]
-            logger.info(f"Processing segment for segment index {segment_index}")
+            logger.info(f"Processing segment for segment index {segment_index}, for transcript_{segment_index}_logging.json")
             try:
                 result = future.result()
                 results.append((segment_index, result))  # Store results along with their original index
