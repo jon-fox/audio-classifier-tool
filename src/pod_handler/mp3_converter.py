@@ -264,8 +264,8 @@ def process_audio_segment(index, audio_segment):
             logger.info(f"Put prompts into assistant thread openai thread {thread.id} and polling run {run.id}")
             min_ms, max_ms, confidence_score = get_run_output(run=run, thread=thread)
             logger.info(f"Thread {threading.get_ident()} has exited the openai api call for file transcript_{index}_logging.json")
-            logger.info(f"OpenAI Thread {thread.id} and Run {run.id}:: Finished with values MIN[{min_ms}], MAX[{max_ms}], 
-                        and Confidence Score [{confidence_score}], transcript_{index}_logging.json")
+            logger.info(f"OpenAI Thread {thread.id} and Run {run.id}:: Finished with values MIN[{min_ms}], MAX[{max_ms}], "
+                        f"and Confidence Score [{confidence_score}], transcript_{index}_logging.json")
 
 
         if min_ms == float('inf') and max_ms == float('-inf'):
