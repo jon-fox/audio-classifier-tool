@@ -55,8 +55,8 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 COPY src/ /app/src
 
 COPY certs/ /app/certs
-COPY set_env_vars.py /app/
-COPY ./startup.sh /app/
+# COPY set_env_vars.py /app/
+# COPY ./startup.sh /app/
 COPY ./requirements.txt /app/
 
 # RUN python3.11 -m venv venv
@@ -65,5 +65,5 @@ COPY ./requirements.txt /app/
 
 EXPOSE 80 443
 
-ENTRYPOINT ["/app/startup.sh"]
-
+# ENTRYPOINT ["/app/startup.sh"]
+CMD ["python3.11", "/app/src/main.py"]
