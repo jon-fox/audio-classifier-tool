@@ -58,6 +58,8 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
     upload_file_to_space(BUCKET_NAME, s3_key, local_path)
 
     logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
+    logger.info(f"Episode Length: {podcast_length} seconds, "
+                f"Original Duration: {original_duration} seconds, Removed: {original_duration - podcast_length} seconds")
 
     # Example usage
     write_to_db.insert_podcast_metadata(
