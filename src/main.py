@@ -3,6 +3,7 @@ from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 import json
 import src.db_utils.write_to_db as write_to_db
+import src.db_utils.read_db as read_db
 import boto3
 import sys
 
@@ -57,22 +58,28 @@ def process_payload(payload={}):
                     f"episode_name: {episode_name}, "
                     f"audio_url: {audio_url}")
         episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
-        prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
+        if source_url := read_db.get_podcast_url(episode_hash):
+            logger.info(f"Episode exists in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
+            logger.info(f"Episode CDN URL::{source_url}")
+        else:
+            logger.info(f"Episode does not exist in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
+            prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
     else:
         logger.info("No payload received")
 
 
-def main():
-    # Parse the command-line argument (expected to be JSON string)
-    if len(sys.argv) > 1:
+def main(payload={}):
+    if payload:
+        logger.info(f"Received payload: {payload}")
+        process_payload(payload)
+    elif len(sys.argv) > 1:
         payload_str = sys.argv[1]
         try:
-            # Convert the JSON string to a Python dictionary
             payload = json.loads(payload_str)
             logger.info(f"Received payload: {payload}")
             
             # Process the payload
-            process_payload(payload):
+            process_payload(payload)
             logger.info(f"Procesed payload::{payload}")
         except json.JSONDecodeError:
             logger.error("Invalid JSON payload")
@@ -85,14 +92,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    payload = {
+        "podcast_name": "Candace",
+        "episode_name": "Trump VS Kamala: The Unexpected Winner… | Candace Ep 62",
+        "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC1881985008.mp3?updated=1726094456"
+    }
 
-
-# if __name__ == "__main__":
-    # payload = {
-    #     "podcast_name": "Candace",
-    #     "episode_name": "Trump VS Kamala: The Unexpected Winner… | Candace Ep 62",
-    #     "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC1881985008.mp3?updated=1726094456"
-    # }
-
-    # process_payload(payload)
+    main(payload)
