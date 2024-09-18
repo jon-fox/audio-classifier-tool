@@ -6,3 +6,7 @@ export AWS_CONFIG_FILE=/mnt/c/Users/foxj7/.aws/config
 export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt_App"
 
 export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
+
+
+# Terraform init
+terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"

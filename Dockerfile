@@ -57,11 +57,13 @@ COPY src/ /app/src
 COPY certs/ /app/certs
 # COPY set_env_vars.py /app/
 # COPY ./startup.sh /app/
-COPY ./requirements.txt /app/
+# COPY ./requirements.txt /app/
 
 # RUN python3.11 -m venv venv
 
 # RUN /bin/bash -c "source /app/venv/bin/activate && pip install --no-cache-dir -r /app/requirements.txt"
+
+ENV PYTHONPATH=/app
 
 EXPOSE 80 443
 
