@@ -47,7 +47,8 @@ RUN apt-get update && \
 # Set the working directory (optional)
 WORKDIR /app
 
-COPY requirements.txt /app/
+# COPY requirements.txt /app/
+COPY ./requirements.txt /app/
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy your application files to the container (optional)
@@ -57,7 +58,6 @@ COPY src/ /app/src
 COPY certs/ /app/certs
 # COPY set_env_vars.py /app/
 # COPY ./startup.sh /app/
-# COPY ./requirements.txt /app/
 
 # RUN python3.11 -m venv venv
 
@@ -68,4 +68,4 @@ ENV PYTHONPATH=/app
 EXPOSE 80 443
 
 # ENTRYPOINT ["/app/startup.sh"]
-CMD ["python3.11", "/app/src/main.py"]
+CMD ["python3.10", "/app/src/main.py"]
