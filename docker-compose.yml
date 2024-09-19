@@ -10,10 +10,11 @@ services:
         reservations:
           devices:
             - capabilities: [gpu]
+    # runtime: nvidia
     environment:
       - NVIDIA_VISIBLE_DEVICES=all  # Or specify particular GPUs, e.g., "0,1"
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # If additional capabilities are needed
-    command: ["python", "main.py", "--payload", "${PAYLOAD}"]  
+
 
 
 # docker stack deploy -c docker-compose.yml my_stack
