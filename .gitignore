@@ -8,6 +8,7 @@ local_models/
 *.wav
 *.txt
 !requirements.txt
+!task-definition.json
 *.json
 *.whl
 *info
