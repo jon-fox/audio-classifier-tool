@@ -1,0 +1,47 @@
+{
+  "family": "gpu-task",
+  "containerDefinitions": [
+      {
+          "name": "gpu-container",
+          "image": "381492150662.dkr.ecr.us-east-1.amazonaws.com/app-ecr-repo:latest",
+          "cpu": 3072,
+          "memory": 14336,
+          "portMappings": [],
+          "essential": true,
+          "environment": [
+            {
+              "name": "NVIDIA_DRIVER_CAPABILITIES",
+              "value": "compute,utility"
+            },
+            {
+              "name": "PAYLOAD",
+              "value": "{}"
+            }
+          ],
+          "mountPoints": [],
+          "volumesFrom": [],
+          "logConfiguration": {
+              "logDriver": "awslogs",
+              "options": {
+                  "awslogs-group": "gpu-task-logs",
+                  "awslogs-region": "us-east-1",
+                  "awslogs-stream-prefix": "ecs"
+              }
+          },
+          "systemControls": [],
+          "resourceRequirements": [
+              {
+                  "value": "1",
+                  "type": "GPU"
+              }
+          ],
+          "command": ["python3.11", "/app/src/main.py"]
+      }
+  ],
+  "taskRoleArn": "arn:aws:iam::381492150662:role/ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::381492150662:role/ecs-task-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+      "EC2"
+  ]
+}
