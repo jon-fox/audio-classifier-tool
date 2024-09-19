@@ -69,4 +69,4 @@ ENV PYTHONPATH=/app
 EXPOSE 80 443
 
 # ENTRYPOINT ["/app/startup.sh"]
-CMD ["python3.11", "/app/src/main.py"]
+CMD ["python3.11", "/app/src/main.py", "--payload", "$PAYLOAD"]
