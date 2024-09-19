@@ -59,12 +59,13 @@ def process_payload(payload={}):
                     f"episode_name: {episode_name}, "
                     f"audio_url: {audio_url}")
         episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
-        if source_url := read_db.get_cdn_url(episode_hash):
-            logger.info(f"Episode exists in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
-            logger.info(f"Episode CDN URL::{source_url}")
-        else:
-            logger.info(f"Episode does not exist in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
-            prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
+        # TODO this is handled in the lambda
+        # if source_url := read_db.get_cdn_url(episode_hash):
+        #     logger.info(f"Episode exists in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
+        #     logger.info(f"Episode CDN URL::{source_url}")
+        # else:
+        logger.info(f"Episode does not exist in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
+        prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
     else:
         logger.info("No payload received")
 
