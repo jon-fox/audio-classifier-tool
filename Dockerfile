@@ -49,7 +49,8 @@ WORKDIR /app
 
 # COPY requirements.txt /app/
 COPY ./requirements.txt /app/
-RUN pip3 install --no-cache-dir -r requirements.txt
+# RUN pip3 install --no-cache-dir -r requirements.txt
+RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
 
 # Copy your application files to the container (optional)
 # COPY ./dist /app
@@ -68,4 +69,4 @@ ENV PYTHONPATH=/app
 EXPOSE 80 443
 
 # ENTRYPOINT ["/app/startup.sh"]
-CMD ["python3.10", "/app/src/main.py"]
+CMD ["python3.11", "/app/src/main.py"]
