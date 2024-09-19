@@ -104,4 +104,4 @@ if __name__ == "__main__":
     #     "audio_url": "https://www.podtrac.com/pts/redirect.mp3/pdst.fm/e/chrt.fm/track/7GB118/pscrb.fm/rss/p/mgln.ai/e/35/arttrk.com/p/ADCT2/clrtpod.com/m/traffic.megaphone.fm/ADV8126990425.mp3?updated=1726194017"
     # }
 
-    # python src/main.py --payload "{\"podcast_name\": \"Candace\", \"episode_name\": \"URGENT: Trump Must Drop JD Vance To Avoid Another Assassination Attempt | Candace Ep 65\", \"audio_url\": \"https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC9411721285.mp3?updated=1726522694\"}"
+    # export PAYLOAD='{"podcast_name": "Candace", "episode_name": "URGENT: Trump Must Drop JD Vance To Avoid Another Assassination Attempt | Candace Ep 65", "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC9411721285.mp3?updated=1726522694"}'
