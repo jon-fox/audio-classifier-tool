@@ -10,3 +10,9 @@ export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
 
 # Terraform init
 terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
+
+# ecs agent
+sudo yum install -y ecs-init
+sudo systemctl start ecs
+
+sudo systemctl status ecs
