@@ -15,12 +15,13 @@ import argparse
 # http://localhost:8000/stream?podcast_name=The%20Jimmy%20DORE%20Show
 
 ssm = boto3.client('ssm', region_name='us-east-1')
+sqs_client = boto3.client('sqs', 'us-east-1')
 
 # Configuration
 REGION = os.getenv("REGION", "us-east-1")
 BUCKET_NAME = ssm.get_parameter(Name="/app/app_storage_bucket")['Parameter']['Value']
 CDN_BASE_URL = ssm.get_parameter(Name="/cloudfront/distribution/url")['Parameter']['Value']
-
+SQS_URL = ssm.get_parameter(Name='/sqs/audio_processing/url')['Parameter']['Value']
 # sample cdn url, first part is the cloudfront distribution, 
 # the path is the s3 key path
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
@@ -70,24 +71,58 @@ def process_payload(payload={}):
         logger.info("No payload received")
 
 
-def main():
+def poll_sqs():
     try:
-        # Retrieve the JSON payload from the environment variable
-        payload_str = os.environ.get('PAYLOAD')
-        if payload_str:
-            payload = json.loads(payload_str)
-            logger.info(f"Received payload: {payload}")
-            process_payload(payload)
-            logger.info(f"Processed payload: {payload}")
-        else:
-            logger.error("No payload provided")
-            sys.exit(1)
+        response = sqs_client.receive_message(
+            QueueUrl=SQS_URL,
+            MaxNumberOfMessages=1,
+            WaitTimeSeconds=10
+        )
+        
+        messages = response.get('Messages', [])
+        if not messages:
+            logger.info("No messages received")
+            return None
+
+        for message in messages:
+            receipt_handle = message['ReceiptHandle']
+            body = message['Body']
+            logger.info(f"Received message: {body}")
+
+            # Process the message
+            process_message(body)
+
+            # Delete the message from the queue
+            sqs_client.delete_message(
+                QueueUrl=SQS_URL,
+                ReceiptHandle=receipt_handle
+            )
+            logger.info("Message deleted from the queue")
+
+    except Exception as e:
+        logger.error(f"Error polling SQS: {e}")
+        sys.exit(1)
+
+
+def process_message(message_body):
+    try:
+        payload = json.loads(message_body)
+        logger.info(f"Processing payload: {payload}")
+        process_payload(payload)
+        logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON payload: {e}")
-        sys.exit(1)
     except Exception as e:
         logger.error(f"Error processing payload: {e}")
+
+
+def main():
+    if not SQS_URL:
+        logger.error("SQS_QUEUE_URL not found in parameter store /sqs/audio_processing/url")
         sys.exit(1)
+
+    while True:
+        poll_sqs()
 
 
 if __name__ == "__main__":
