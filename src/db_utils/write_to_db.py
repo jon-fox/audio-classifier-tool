@@ -148,7 +148,45 @@ def insert_message(episode_hash, status, message_id, processing_node=None, error
 
                 logger.info(f"Inserted message with episode_hash: {episode_hash} and message_id: {message_id}")
     except Exception as error:
-        logger.error(f"Error inserting data: {error}")
+        logger.error(f"Error inserting data in podcast_metadata.message_processing: {error}")
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Database connection closed.")
+
+
+def update_status(episode_hash, new_status):
+    logger.info("Starting update_status function")
+    logger.debug(f"Parameters: episode_hash={episode_hash}, new_status={new_status}")
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                timestamp = datetime.utcnow()  # Get the current UTC time
+                logger.debug(f"Current UTC timestamp: {timestamp}")
+                # Prepare the SQL UPDATE statement
+                update_query = sql.SQL("""
+                    UPDATE podcast_metadata.message_processing
+                    SET status = %s,
+                        updated_timestamp = %s
+                    WHERE episode_hash = %s
+                """)
+
+                # Execute the query with the new status and current timestamp
+                cur.execute(update_query, (
+                    new_status,
+                    timestamp,  # Updated timestamp to current UTC time
+                    episode_hash
+                ))
+                logger.info(f"Executed update query for episode_hash: {episode_hash}")
+
+                # Commit the transaction
+                conn.commit()
+                logger.info(f"Committed transaction for episode_hash: {episode_hash}")
+
+                logger.info(f"Updated status to '{new_status}' for episode_hash: {episode_hash}")
+    except Exception as error:
+        logger.error(f"Error updating data in podcast_metadata.message_processing: {error}")
     finally:
         if conn:
             conn.close()
