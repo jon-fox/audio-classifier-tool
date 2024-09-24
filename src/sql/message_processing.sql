@@ -10,7 +10,7 @@ CREATE TABLE podcast_metadata.message_processing (
     completed_timestamp TIMESTAMPTZ,         -- Timestamp when processing was completed (can be NULL initially)
     retry_count INT NOT NULL DEFAULT 0,      -- Number of times the message has been retried
     priority INT DEFAULT 0,                  -- Priority of the message, higher values mean higher priority
-    source TEXT,                             -- Source or origin of the message
+    aws_request_id TEXT,                             -- Source or origin of the message
     is_archived BOOLEAN DEFAULT FALSE,       -- Flag to indicate if the record is archived
     processing_duration INTERVAL            -- Duration of processing
 );

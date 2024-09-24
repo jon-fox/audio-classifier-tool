@@ -101,9 +101,9 @@ def insert_pod_w_ads(**kwargs):
             conn.close()
 
 
-def insert_message(episode_hash, status, message_id, processing_node=None, error_details=None, result_data=None, completed_timestamp=None, retry_count=0, priority=0, source=None, is_archived=False, processing_duration=None):
+def insert_message(episode_hash, status, message_id, processing_node=None, error_details=None, result_data=None, completed_timestamp=None, retry_count=0, priority=0, aws_request_id=None, is_archived=False, processing_duration=None):
     logger.info("Inserting sqs message into the podcast_metadata.message_processing")
-    logger.debug(f"Parameters: episode_hash={episode_hash}, status={status}, message_id={message_id}, processing_node={processing_node}, error_details={error_details}, result_data={result_data}, completed_timestamp={completed_timestamp}, retry_count={retry_count}, priority={priority}, source={source}, is_archived={is_archived}, processing_duration={processing_duration}")
+    logger.debug(f"Parameters: episode_hash={episode_hash}, status={status}, message_id={message_id}, processing_node={processing_node}, error_details={error_details}, result_data={result_data}, completed_timestamp={completed_timestamp}, retry_count={retry_count}, priority={priority}, source={aws_request_id}, is_archived={is_archived}, processing_duration={processing_duration}")
 
     try:
         with get_db_connection() as conn:
@@ -117,7 +117,7 @@ def insert_message(episode_hash, status, message_id, processing_node=None, error
                     INSERT INTO podcast_metadata.message_processing (
                         episode_hash, message_id, status, created_timestamp, updated_timestamp, 
                         processing_node, error_details, result_data, completed_timestamp, 
-                        retry_count, priority, source, is_archived, processing_duration
+                        retry_count, priority, aws_request_id, is_archived, processing_duration
                     ) VALUES (
                         %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                     )
@@ -138,7 +138,7 @@ def insert_message(episode_hash, status, message_id, processing_node=None, error
                     completed_timestamp,
                     retry_count,
                     priority,
-                    source,
+                    aws_request_id,
                     is_archived,
                     processing_duration
                 ))

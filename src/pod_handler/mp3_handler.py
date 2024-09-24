@@ -83,3 +83,8 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
         mime_type="audio/mpeg",
         upload_dt=datetime.datetime.now(),
     )
+
+    logger.info(f"Data inserted successfully for episode {hashkey}")
+
+    logger.info(f"Updating status for episode {hashkey} to COMPLETED in db podcast_metadata.message_processing")
+    write_to_db.update_status(hashkey, 'COMPLETED')

@@ -3,10 +3,10 @@ from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 import json
 import src.db_utils.write_to_db as write_to_db
-import src.db_utils.read_db as read_db
 import boto3
 import sys
-import argparse
+from datetime import datetime
+import requests
 
 
 # uvicorn app:app --reload
@@ -40,9 +40,21 @@ def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
     except Exception as e:
         logger.error(f"Error processing MP3 file::{e}")
         raise e
+    
+
+def get_instance_id():
+    try:
+        # Use the EC2 metadata service to get the instance ID
+        response = requests.get('http://169.254.169.254/latest/meta-data/instance-id')
+        response.raise_for_status()
+        instance_id = response.text
+        return instance_id
+    except requests.RequestException as e:
+        logger.error(f"Error retrieving instance ID: {e}")
+        return None
 
 
-def process_payload(payload={}):
+def process_payload(payload={}, sqs_response={}):
     # Retrieve the payload from the environment variable
     # payload = json.loads(os.getenv('PAYLOAD', payload))
     logger.info(f"Received payload::{payload}")
@@ -60,12 +72,25 @@ def process_payload(payload={}):
                     f"episode_name: {episode_name}, "
                     f"audio_url: {audio_url}")
         episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
-        # TODO this is handled in the lambda
-        # if source_url := read_db.get_cdn_url(episode_hash):
-        #     logger.info(f"Episode exists in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
-        #     logger.info(f"Episode CDN URL::{source_url}")
-        # else:
-        logger.info(f"Episode does not exist in the database, Podcast Name {podcast_name}, Episode Name {episode_name}")
+        
+        instance_id = get_instance_id()
+        if instance_id:
+            logger.info(f"Running on instance ID: {instance_id}")
+        else:
+            logger.error("Failed to retrieve instance ID")
+            instance_id = "UNKNOWN"
+    
+
+        write_to_db.insert_message(
+            episode_hash=episode_hash,
+            status='PROCESSING',
+            message_id=sqs_response['Messages'][0]['MessageId'],
+            processing_node=instance_id,
+            result_data=json.dumps(sqs_response),
+            completed_timestamp=datetime.now(),
+            aws_request_id=sqs_response['Messages'][0]['ResponseMetadata']['RequestId'],
+            is_archived='N'
+        )
         prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
     else:
         logger.info("No payload received")
@@ -73,13 +98,13 @@ def process_payload(payload={}):
 
 def poll_sqs():
     try:
-        response = sqs_client.receive_message(
+        sqs_response = sqs_client.receive_message(
             QueueUrl=SQS_URL,
             MaxNumberOfMessages=1,
             WaitTimeSeconds=10
         )
         
-        messages = response.get('Messages', [])
+        messages = sqs_response.get('Messages', [])
         if not messages:
             logger.info("No messages received")
             return None
@@ -90,7 +115,7 @@ def poll_sqs():
             logger.info(f"Received message: {body}")
 
             # Process the message
-            process_message(body)
+            process_message(body, sqs_response)
 
             # Delete the message from the queue
             sqs_client.delete_message(
