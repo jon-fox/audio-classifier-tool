@@ -2,6 +2,8 @@ from psycopg2 import sql
 from src.db_utils.db_get_conn import get_db_connection
 from src.logger.logger_setup import logger
 import hashlib
+from datetime import datetime
+import json
 
 
 def generate_hash(podcast_name, episode_name):
@@ -30,7 +32,6 @@ def sanitize_name(name):
         name = name.replace(char, replacement)
     
     return name
-
 
 
 def insert_podcast_metadata(**kwargs):
@@ -98,3 +99,57 @@ def insert_pod_w_ads(**kwargs):
             cursor.close()
         if conn:
             conn.close()
+
+
+def insert_message(episode_hash, status, message_id, processing_node=None, error_details=None, result_data=None, completed_timestamp=None, retry_count=0, priority=0, source=None, is_archived=False, processing_duration=None):
+    logger.info("Inserting sqs message into the podcast_metadata.message_processing")
+    logger.debug(f"Parameters: episode_hash={episode_hash}, status={status}, message_id={message_id}, processing_node={processing_node}, error_details={error_details}, result_data={result_data}, completed_timestamp={completed_timestamp}, retry_count={retry_count}, priority={priority}, source={source}, is_archived={is_archived}, processing_duration={processing_duration}")
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                timestamp = datetime.utcnow()  # Get the current UTC time
+
+                logger.debug(f"Current UTC timestamp: {timestamp}")
+
+                # Prepare the SQL INSERT statement
+                insert_query = sql.SQL("""
+                    INSERT INTO podcast_metadata.message_processing (
+                        episode_hash, message_id, status, created_timestamp, updated_timestamp, 
+                        processing_node, error_details, result_data, completed_timestamp, 
+                        retry_count, priority, source, is_archived, processing_duration
+                    ) VALUES (
+                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                    )
+                """)
+                
+                logger.debug(f"SQL Insert Query: {insert_query.as_string(cur)}")
+
+                # Execute the query
+                cur.execute(insert_query, (
+                    episode_hash,
+                    message_id,
+                    status,
+                    timestamp,  # created_timestamp
+                    timestamp,  # updated_timestamp
+                    processing_node,
+                    error_details,
+                    json.dumps(result_data) if result_data else None,  # Convert result_data to JSON
+                    completed_timestamp,
+                    retry_count,
+                    priority,
+                    source,
+                    is_archived,
+                    processing_duration
+                ))
+
+                # Commit the transaction
+                conn.commit()
+
+                logger.info(f"Inserted message with episode_hash: {episode_hash} and message_id: {message_id}")
+    except Exception as error:
+        logger.error(f"Error inserting data: {error}")
+    finally:
+        if conn:
+            conn.close()
+            logger.debug("Database connection closed.")
