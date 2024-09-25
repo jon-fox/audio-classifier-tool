@@ -129,11 +129,11 @@ def poll_sqs():
         sys.exit(1)
 
 
-def process_message(message_body):
+def process_message(message_body, sqs_response):
     try:
         payload = json.loads(message_body)
         logger.info(f"Processing payload: {payload}")
-        process_payload(payload)
+        process_payload(payload, sqs_response)
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON payload: {e}")
