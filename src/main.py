@@ -27,6 +27,10 @@ SQS_URL = ssm.get_parameter(Name='/sqs/audio_processing/url')['Parameter']['Valu
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
 
 
+# Global polling variable
+processing_message = False
+
+
 def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
@@ -54,7 +58,7 @@ def get_instance_id():
         return None
 
 
-def process_payload(payload={}, sqs_response={}):
+def process_payload(payload={}, receipt_handle=None, message_id=None):
     # Retrieve the payload from the environment variable
     # payload = json.loads(os.getenv('PAYLOAD', payload))
     logger.info(f"Received payload::{payload}")
@@ -62,6 +66,7 @@ def process_payload(payload={}, sqs_response={}):
     if payload:
         # Convert the payload from string to dictionary
         logger.info(f"Received payload: {payload}")
+        logger.info(f"Received SQS response receipt_handle: {receipt_handle}, message_id: {message_id}")
 
         # Process the payload
         logger.info(f"Podcast before sanitization::{payload.get('podcast_name')}")
@@ -84,11 +89,11 @@ def process_payload(payload={}, sqs_response={}):
         write_to_db.insert_message(
             episode_hash=episode_hash,
             status='PROCESSING',
-            message_id=sqs_response['Messages'][0]['MessageId'],
+            message_id=message_id,
             processing_node=instance_id,
-            result_data=json.dumps(sqs_response),
+            result_data=json.dumps(payload),
             completed_timestamp=datetime.now(),
-            aws_request_id=sqs_response['Messages'][0]['ResponseMetadata']['RequestId'],
+            aws_request_id=receipt_handle,
             is_archived='N'
         )
         prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
@@ -96,49 +101,60 @@ def process_payload(payload={}, sqs_response={}):
         logger.info("No payload received")
 
 
-def poll_sqs():
-    try:
-        sqs_response = sqs_client.receive_message(
-            QueueUrl=SQS_URL,
-            MaxNumberOfMessages=1,
-            WaitTimeSeconds=10
-        )
-        
-        messages = sqs_response.get('Messages', [])
-        if not messages:
-            logger.info("No messages received")
-            return None
-
-        for message in messages:
-            receipt_handle = message['ReceiptHandle']
-            body = message['Body']
-            logger.info(f"Received message: {body}")
-
-            # Process the message
-            process_message(body, sqs_response)
-
-            # Delete the message from the queue
-            sqs_client.delete_message(
-                QueueUrl=SQS_URL,
-                ReceiptHandle=receipt_handle
-            )
-            logger.info("Message deleted from the queue")
-
-    except Exception as e:
-        logger.error(f"Error polling SQS: {e}")
-        sys.exit(1)
-
-
-def process_message(message_body, sqs_response):
+def process_message(message_body, receipt_handle, message_id):
     try:
         payload = json.loads(message_body)
         logger.info(f"Processing payload: {payload}")
-        process_payload(payload, sqs_response)
+        process_payload(payload, receipt_handle, message_id)
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON payload: {e}")
     except Exception as e:
         logger.error(f"Error processing payload: {e}")
+
+
+def poll_sqs():
+    global processing_message
+    try:
+        
+        if not processing_message:
+            logger.info("Polling SQS for messages...")
+
+            sqs_response = sqs_client.receive_message(
+                QueueUrl=SQS_URL,
+                MaxNumberOfMessages=1,
+                WaitTimeSeconds=10
+            )
+
+            messages = sqs_response.get('Messages', [])
+            if not messages:
+                logger.info("No messages received")
+                return None
+
+            for message in messages:
+                receipt_handle = message['ReceiptHandle']
+                message_id = message['MessageId']
+                body = message['Body']
+                logger.info(f"Received message: {body}")
+
+                # Process the message
+                processing_message = True
+                process_message(body, receipt_handle, message_id)
+
+                # Delete the message from the queue
+                sqs_client.delete_message(
+                    QueueUrl=SQS_URL,
+                    ReceiptHandle=receipt_handle
+                )
+                logger.info("Message deleted from the queue")
+                logger.info("Waiting for next message...")
+                processing_message = False
+        else:
+            logger.info("Processing message, waiting for processing to finish...")
+
+    except Exception as e:
+        logger.error(f"Error polling SQS: {e}")
+        sys.exit(1)
 
 
 def main():
