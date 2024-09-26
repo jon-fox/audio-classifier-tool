@@ -52,7 +52,7 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
 
     logger.info(f'Time taken: {total_processing_time} seconds')
 
-    s3_key = f"{podcast_name}/{hashkey}/"
+    s3_key = f"{podcast_name}/{hashkey}"
 
     episode_s3_key = f"{s3_key}/{saved_episode_name}"
     s3_location = f"{BUCKET_NAME}/{episode_s3_key}"

@@ -22,4 +22,4 @@ AMIs
 #######################
 this ami-092326650e967b14a is setup with nvidia drivers and docker
 
-this ami-06e5fc0c8efc296ac is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
+this ami-003b75616e20f62d4 is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
