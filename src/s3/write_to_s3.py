@@ -2,7 +2,7 @@ import boto3
 from src.logger.logger_setup import logger
 
 
-def upload_file_to_space(bucket_name, s3_key, local_path):
+def upload_file_to_s3(bucket_name, s3_key, local_path):
     """
     Upload an MP3 file to an S3 bucket.
 

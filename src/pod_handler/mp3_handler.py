@@ -7,7 +7,7 @@ from src.pod_handler.download_mp3 import download_episode
 from src.pod_handler.mp3_converter import remove_ads_from_audio
 from src.config.constants import *
 from src.logger.logger_setup import logger
-from src.s3.write_to_s3 import upload_file_to_space
+from src.s3.write_to_s3 import upload_file_to_s3
 from src.db_utils import write_to_db
 
 
@@ -55,7 +55,7 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
 
     logger.info(f"Uploaded file to {s3_location}")
 
-    upload_file_to_space(BUCKET_NAME, s3_key, local_path)
+    upload_file_to_s3(BUCKET_NAME, s3_key, local_path)
 
     logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
     logger.info(f"Episode Length: {podcast_length} seconds, "
@@ -88,3 +88,5 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
 
     logger.info(f"Updating status for episode {hashkey} to COMPLETED in db podcast_metadata.message_processing")
     write_to_db.update_status(hashkey, 'COMPLETED')
+
+    
