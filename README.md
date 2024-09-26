@@ -16,3 +16,10 @@ sudo yum install -y ecs-init
 sudo systemctl start ecs
 
 sudo systemctl status ecs
+
+
+AMIs
+#######################
+this ami-092326650e967b14a is setup with nvidia drivers and docker
+
+this ami-06e5fc0c8efc296ac is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
