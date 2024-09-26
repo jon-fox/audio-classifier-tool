@@ -11,6 +11,8 @@ from src.s3.write_to_s3 import upload_file_to_s3
 from src.db_utils import write_to_db
 
 
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
 try:
     ssm = boto3.client('ssm', 'us-east-1')
     BUCKET_NAME = ssm.get_parameter(Name='/app/app_storage_bucket')['Parameter']['Value']
@@ -50,12 +52,14 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
 
     logger.info(f'Time taken: {total_processing_time} seconds')
 
-    s3_key = f"{podcast_name}/{saved_episode_name}"
-    s3_location = f"{BUCKET_NAME}/{s3_key}"
+    s3_key = f"{podcast_name}/{hashkey}/"
+
+    episode_s3_key = f"{s3_key}/{saved_episode_name}"
+    s3_location = f"{BUCKET_NAME}/{episode_s3_key}"
 
     logger.info(f"Uploaded file to {s3_location}")
 
-    upload_file_to_s3(BUCKET_NAME, s3_key, local_path)
+    upload_file_to_s3(BUCKET_NAME, episode_s3_key, local_path)
 
     logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
     logger.info(f"Episode Length: {podcast_length} seconds, "
@@ -89,4 +93,23 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
     logger.info(f"Updating status for episode {hashkey} to COMPLETED in db podcast_metadata.message_processing")
     write_to_db.update_status(hashkey, 'COMPLETED')
 
-    
+    # write transcripts to s3
+    transcript_files = [f for f in os.listdir(script_dir) if f.endswith('_logging.json')]
+
+    # Upload each transcript file to S3
+    for transcript_file in transcript_files:
+        try:
+            local_path = os.path.join(script_dir, transcript_file)
+            transcript_s3_key = f"{s3_key}/{transcript_file}"
+            upload_file_to_s3(BUCKET_NAME, transcript_s3_key, local_path)
+
+            logger.info(f"Uploaded transcript file to S3: {transcript_s3_key}")
+
+            # Remove the transcript file after uploading
+            try:
+                os.remove(local_path)
+                logger.info(f"Removed local transcript file: {local_path}")
+            except Exception as e:
+                logger.error(f"Error removing local transcript file: {e}")
+        except Exception as e:
+            logger.error(f"Error uploading transcript file to S3: {e}")
