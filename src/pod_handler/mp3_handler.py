@@ -113,3 +113,14 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
                 logger.error(f"Error removing local transcript file: {e}")
         except Exception as e:
             logger.error(f"Error uploading transcript file to S3: {e}")
+
+    # Clean up MP3 and WAV files in the downloads directory
+    audio_files = [f for f in os.listdir(DOWNLOAD_DIR) if f.endswith('.mp3') or f.endswith('.wav')]
+    logger.info(f"Removing local audio files: {audio_files}")
+    for audio_file in audio_files:
+        try:
+            audio_path = os.path.join(DOWNLOAD_DIR, audio_file)
+            os.remove(audio_path)
+            logger.info(f"Removed local audio file: {audio_path}")
+        except Exception as e:
+            logger.error(f"Error removing local audio file: {e}")
