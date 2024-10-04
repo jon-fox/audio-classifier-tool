@@ -7,6 +7,12 @@ export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt_App"
 
 export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
 
+# PYAUDIO
+need to set ld lib path that includes already installed python-audio dependencies
+so this venv can use it
+
+export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
+
 
 # Terraform init
 terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
