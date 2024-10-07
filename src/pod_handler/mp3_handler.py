@@ -4,7 +4,8 @@ import boto3
 import datetime
 import json
 from src.pod_handler.download_mp3 import download_episode
-from src.pod_handler.mp3_converter import remove_ads_from_audio
+# from src.pod_handler.mp3_converter import remove_ads_from_audio
+from src.pod_handler.mp3_converter_whisperx import remove_ads_from_audio
 from src.config.constants import *
 from src.logger.logger_setup import logger
 from src.s3.write_to_s3 import upload_file_to_s3

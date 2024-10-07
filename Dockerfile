@@ -50,7 +50,8 @@ WORKDIR /app
 # COPY requirements.txt /app/
 COPY ./requirements.txt /app/
 # RUN pip3 install --no-cache-dir -r requirements.txt
-RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
+# RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
+RUN python3.11 -m pip install --no-cache-dir -r requirements-whisperx.txt
 
 # Copy your application files to the container (optional)
 # COPY ./dist /app

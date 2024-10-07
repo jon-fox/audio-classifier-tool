@@ -1,5 +1,6 @@
 # Ignore virtual environment directories
 venv/
+whispervenv/
 downloads/
 local_models/
 
