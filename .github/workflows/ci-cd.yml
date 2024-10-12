@@ -1,0 +1,39 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Build and push Docker image
+      run: |
+        IMAGE_TAG=latest
+        REPOSITORY_URI=YOUR_ECR_REPOSITORY_URI
+        docker build -t $REPOSITORY_URI:$IMAGE_TAG .
+        docker push $REPOSITORY_URI:$IMAGE_TAG
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to EC2 (via SSH or ECS)
+      run: |
+        # SSH to your EC2 instance and restart the service
+        # or update ECS task definition to pull the new image
+
