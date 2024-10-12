@@ -15,6 +15,10 @@ jobs:
       with:
         role-to-assume: ${{ secrets.AWS_DEV_GITHUB_ACTION_ROLE }}
         aws-region: us-east-1
+
+    - name: Log in to Amazon ECR
+      run: aws ecr get-login-password --region ${{ secrets.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ secrets.REGION }}.amazonaws.com
+
     - name: Checkout code
       uses: actions/checkout@v2
 
