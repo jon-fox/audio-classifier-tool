@@ -9,6 +9,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      id-token: write
+      contents: read
+
+
     steps:
     - name: Configure AWS credentials from Test account
       uses: aws-actions/configure-aws-credentials@v4
