@@ -22,7 +22,7 @@ jobs:
         aws-region: us-east-1
 
     - name: Log in to Amazon ECR
-      run: aws ecr get-login-password --region ${{ secrets.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ secrets.REGION }}.amazonaws.com
+      run: aws ecr get-login-password --region ${{ env.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ env.REGION }}.amazonaws.com
 
     - name: Checkout code
       uses: actions/checkout@v2
