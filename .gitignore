@@ -3,6 +3,7 @@ venv/
 whispervenv/
 downloads/
 local_models/
+certs/
 
 # Ignore mp3 files
 *.mp3

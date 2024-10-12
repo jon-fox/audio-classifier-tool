@@ -41,9 +41,20 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build and push Docker image
+    - name: Determine the image tag
+      run: echo "IMAGE_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+    - name: Check if the Docker image already exists in ECR
+      id: ecr_image_check
       run: |
-        IMAGE_TAG=latest
+        IMAGE_TAG=${{ env.IMAGE_TAG }}
+        REPOSITORY_URI=${{ secrets.ECR_REPOSITORY }}
+        aws ecr describe-images --repository-name $REPOSITORY_URI --image-ids imageTag=$IMAGE_TAG || echo "not_found" >> $GITHUB_ENV
+
+    - name: Build and push Docker image only if it doesn't exist
+      if: contains(steps.ecr_image_check.outputs.result, 'not_found')
+      run: |
+        IMAGE_TAG=${{ env.IMAGE_TAG }}
         REPOSITORY_URI=${{ secrets.ECR_REPOSITORY }}
         docker build -t $REPOSITORY_URI:$IMAGE_TAG .
         docker push $REPOSITORY_URI:$IMAGE_TAG
@@ -90,7 +101,10 @@ jobs:
     - name: Deploy Docker image to EC2
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
-          docker pull ${{ secrets.ECR_REPOSITORY }}:latest
+          IMAGE_TAG=${{ env.IMAGE_TAG }}
+
+          # Pull the image with the specific commit hash tag
+          docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
           # Stop and remove any existing container
           docker stop my-service || true
@@ -104,5 +118,5 @@ jobs:
             --gpus all \
             -e NVIDIA_VISIBLE_DEVICES=all \
             -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
-            ${{ secrets.ECR_REPOSITORY }}:latest
+            ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
         EOF
