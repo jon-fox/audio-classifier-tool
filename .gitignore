@@ -9,6 +9,7 @@ local_models/
 *.wav
 *.txt
 !requirements.txt
+!requirements-whisperx.txt
 !task-definition.json
 *.json
 *.whl
