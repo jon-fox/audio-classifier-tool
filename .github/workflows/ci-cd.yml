@@ -47,9 +47,12 @@ jobs:
     - name: Check if the Docker image already exists in ECR
       id: ecr_image_check
       run: |
-        IMAGE_TAG=${{ env.IMAGE_TAG }}
         REPOSITORY_URI=${{ secrets.ECR_REPOSITORY }}
-        aws ecr describe-images --repository-name $REPOSITORY_URI --image-ids imageTag=$IMAGE_TAG || echo "not_found" >> $GITHUB_ENV
+        REPOSITORY_NAME=$(basename $REPOSITORY_URI)  # Extract repository name from URI
+        IMAGE_TAG=${{ env.IMAGE_TAG }}
+        
+        # Check if the image exists
+        aws ecr describe-images --repository-name $REPOSITORY_NAME --image-ids imageTag=$IMAGE_TAG || echo "not_found" >> $GITHUB_ENV
 
     - name: Build and push Docker image only if it doesn't exist
       if: contains(steps.ecr_image_check.outputs.result, 'not_found')
