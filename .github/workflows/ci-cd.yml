@@ -105,6 +105,21 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
+    - name: Get GitHub Actions runner's public IP
+      id: get_ip
+      run: |
+        RUNNER_IP=$(curl -s http://checkip.amazonaws.com)
+        echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Add GitHub Actions runner's IP to security group
+      run: |
+        aws ec2 authorize-security-group-ingress \
+          --group-id env.SECURITY_GROUP_ID \
+          --protocol tcp \
+          --port 22 \
+          --cidr $RUNNER_IP/32
+
     - name: Deploy Docker image to EC2
       run: |
         ssh -o StrictHostKeyChecking=no root@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
@@ -127,3 +142,12 @@ jobs:
             -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
             ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
         EOF
+
+    - name: Remove GitHub Actions runner's IP from security group
+      if: always()
+      run: |
+        aws ec2 revoke-security-group-ingress \
+          --group-id env.SECURITY_GROUP_ID \
+          --protocol tcp \
+          --port 22 \
+          --cidr $RUNNER_IP/32
