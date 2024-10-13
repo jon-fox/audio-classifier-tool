@@ -128,9 +128,13 @@ jobs:
           # Pull the image with the specific commit hash tag
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
-          # Stop and remove any existing container
-          docker stop my-service || true
-          docker rm my-service || true
+          # Check if the container exists before trying to stop and remove it
+          if [ "$(docker ps -a -q -f name=my-service)" ]; then
+            docker stop my-service
+            docker rm my-service
+          else
+            echo "Container my-service does not exist, skipping stop and remove."
+          fi
 
           # Run the new container with the same settings from docker-compose
           docker run -d \
