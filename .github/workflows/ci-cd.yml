@@ -106,7 +106,7 @@ jobs:
         ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
     - name: Get GitHub Actions runner's public IP
-      id: get_ip
+      id: get_runner_ip
       run: |
         RUNNER_IP=$(curl -s http://checkip.amazonaws.com)
         echo "RUNNER_IP=$RUNNER_IP" >> $GITHUB_ENV
