@@ -122,7 +122,7 @@ jobs:
 
     - name: Deploy Docker image to EC2
       run: |
-        ssh -o StrictHostKeyChecking=no root@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
+        ssh -o StrictHostKeyChecking=no ec2-user@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
           IMAGE_TAG=${{ env.IMAGE_TAG }}
 
           # Pull the image with the specific commit hash tag
