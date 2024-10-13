@@ -115,7 +115,7 @@ jobs:
     - name: Add GitHub Actions runner's IP to security group
       run: |
         aws ec2 authorize-security-group-ingress \
-          --group-id env.SECURITY_GROUP_ID \
+          --group-id ${{ env.SECURITY_GROUP_ID }} \
           --protocol tcp \
           --port 22 \
           --cidr $RUNNER_IP/32
@@ -147,7 +147,7 @@ jobs:
       if: always()
       run: |
         aws ec2 revoke-security-group-ingress \
-          --group-id env.SECURITY_GROUP_ID \
+          --group-id ${{ env.SECURITY_GROUP_ID }} \
           --protocol tcp \
           --port 22 \
           --cidr $RUNNER_IP/32
