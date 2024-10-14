@@ -12,6 +12,7 @@ certs/
 !requirements.txt
 !requirements-whisperx.txt
 !task-definition.json
+!popular_ads.txt
 *.json
 *.whl
 *info
