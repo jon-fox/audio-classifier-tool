@@ -15,7 +15,7 @@ jobs:
       KEY_NAME: transcription_key
       SECURITY_GROUP_ID: sg-0ead103f191c31c90
       SUBNET_ID: subnet-0d35ca21bbec62faa
-      ROLE_ARN: arn:aws:iam::381492150662:role/docker-external-app
+      ROLE_ARN: arn:aws:iam::381492150662:instance-profile/ec2-instance-role-profile
 
     permissions:
       id-token: write
