@@ -49,15 +49,13 @@ jobs:
       id: ecr_image_check
       run: |
         REPOSITORY_URI=${{ secrets.ECR_REPOSITORY }}
-        REPOSITORY_NAME=$(basename $REPOSITORY_URI)  # Extract repository name from URI
+        REPOSITORY_NAME=$(basename $REPOSITORY_URI)
         IMAGE_TAG=${{ env.IMAGE_TAG }}
         
         # Check if the image exists
-        if aws ecr describe-images --repository-name $REPOSITORY_NAME --image-ids imageTag=$IMAGE_TAG; then
-          echo "IMAGE_EXISTS=true" >> $GITHUB_ENV
-        else
+        aws ecr describe-images --repository-name $REPOSITORY_NAME --image-ids imageTag=$IMAGE_TAG && \
+          echo "IMAGE_EXISTS=true" >> $GITHUB_ENV || \
           echo "IMAGE_EXISTS=false" >> $GITHUB_ENV
-        fi
 
     - name: Build and push Docker image only if it doesn't exist
       if: env.IMAGE_EXISTS == 'false'
