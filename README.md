@@ -21,7 +21,7 @@ terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
 sudo yum install -y ecs-init
 sudo systemctl start ecs
 
-sudo systemctl status ecs
+sudo systemctl status ecs 
 
  
 AMIs
