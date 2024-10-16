@@ -34,11 +34,6 @@ ad_keywords = ["signing up", "use the code", "support the show", "use code", "th
             r'get \d+% off your', r'save \d+% on your', r'\d+% discount on your', r'get \d+% off', "take a moment to thank our sponsor",
             "signing up", "sponsors", "sponsor", "advertisement", "purchase", "sale", "sponsoring", "checkout"]
 
-# TODO not sure if should use this or not, to prevent single keywords being picked up as ads
-single_ad_keywords = [
-    "signing up", "sponsors", "sponsor", "advertisement", "purchase", "sale", "sponsoring", "checkout"
-    ]
-
 # compiled regex patterns for ad keywords
 ad_keywords_compiled = [re.compile(pattern, re.IGNORECASE) for pattern in ad_keywords]
 
