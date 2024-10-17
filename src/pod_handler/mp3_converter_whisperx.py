@@ -5,10 +5,13 @@ import json
 import os
 import re
 import time
+import traceback
+import argparse
 from queue import Queue
 from src.config.constants import *
 from src.ad_utils.ai_ad_checker import get_specific_timestamps_using_llm, get_run_output
 from src.logger.logger_setup import logger
+import threading
 
 # import whisper
 # import re
@@ -20,7 +23,6 @@ END_AD_BUFFER = 15
 
 MINIMUM_AD_SKIP_TIME = 15 # Minimum time to skip an ad segment
 
-import threading
 # lock = threading.Lock()
 lock = threading.RLock()
 
@@ -38,7 +40,6 @@ ad_keywords = ["signing up", "use the code", "support the show", "use code", "th
 ad_keywords_compiled = [re.compile(pattern, re.IGNORECASE) for pattern in ad_keywords]
 
 # Specify the relative path to the file
-import os
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -152,7 +153,6 @@ def extract_segments(segments, start_time, end_time):
 # export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
 # python pod_handler/mp3_converter.py
 # python mp3_converter.py --device cuda
-import argparse
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description='Process audio segments.')
@@ -217,7 +217,6 @@ def process_audio_segment(index, audio_segment):
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
-        import traceback
         logger.error(traceback.print_exc())
         raise Exception(f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}")
 
@@ -355,7 +354,6 @@ def remove_ads_from_audio(audio_file):
                 results.append((segment_index, result))  # Store results along with their original index
             except Exception as exc:
                 logger.error(f"Segment {segment_index} generated an exception: {exc}")
-                import traceback
                 traceback.print_exc()
         # executor.shutdown(wait=True)
     logger.info(f"Finished processing audio segments, exporting finished mp3")
