@@ -128,7 +128,7 @@ jobs:
 
     - name: Deploy Docker image to EC2
       run: |
-        ssh -o StrictHostKeyChecking=no ec2-user@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
+        ssh -o StrictHostKeyChecking=no ServerAliveInterval=60 -o ServerAliveCountMax=5 ec2-user@${{ steps.get_ip.outputs.public_ip }} << 'EOF'
           IMAGE_TAG=${{ env.IMAGE_TAG }}
 
           docker login -u AWS -p $(aws ecr get-login-password --region ${{ vars.REGION }}) ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.REGION }}.amazonaws.com
