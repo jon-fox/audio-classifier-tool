@@ -187,16 +187,19 @@ def initialize_model_pool(device="cuda"):
     - A queue.Queue object containing the loaded Whisper models.
     """
     global model_pool
+    model_file_path = os.path.join(MODEL_DOWNLOAD_PATH, MODEL_FILE_NAME)
+    logger.info(f"Checking Model file path: {model_file_path}")
+
+    # Check if the model file exists
+    if not os.path.isfile(model_file_path):
+        logger.info(f"Downloading model from Hugging Face model hub")
+        whisper_model = whisperx.load_model("tiny", download_root=os.path.join(MODEL_DOWNLOAD_PATH), device=device)
+    else:
+        logger.info(f"Loading model from file: {model_file_path}")
+        whisper_model = whisperx.load_model(model_file_path, device=device)
+
+    # Load the model into the pool multiple times
     for _ in range(NUMBER_OF_MODELS):
-        model_file_path = os.path.join(MODEL_DOWNLOAD_PATH, MODEL_FILE_NAME)
-        logger.info(f"Checking Model file path: {model_file_path}")
-        if os.path.isfile(model_file_path):
-            logger.info(f"Loading model from file: {model_file_path}")
-            whisper_model = whisperx.load_model(model_file_path, device=device)
-        else:
-            logger.info(f"Downloading model from Hugging Face model hub")
-            whisper_model = whisperx.load_model("tiny", download_root=os.path.join(MODEL_DOWNLOAD_PATH), device=device)
-        # model = whisper.load_model("tiny", device="cpu")
         model_pool.put(whisper_model)
 
 
