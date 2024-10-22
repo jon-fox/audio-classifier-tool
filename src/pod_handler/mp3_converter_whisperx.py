@@ -366,4 +366,5 @@ def remove_ads_from_audio(audio_file):
     # Save the result
     finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
     # Return the duration of the finished audio in seconds
+    logger.info(f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds")
     return len(finished_audio_without_ads) / 1000, original_duration
