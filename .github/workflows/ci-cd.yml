@@ -1,15 +1,24 @@
 name: CI/CD Pipeline
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      confirm_build:
+        description: "Do you want to proceed with the build?"
+        required: true
+        type: choice
+        options:
+          - 'yes'
+          - 'no'
+      branch_name:
+        description: "Which branch should the workflow run on?"
+        required: true
+        default: "main"
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 4
 
     env:
       REGION: us-east-1
