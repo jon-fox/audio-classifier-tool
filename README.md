@@ -13,6 +13,8 @@ so this venv can use it
 
 export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 
+# CICD
+Github actions updated to wait for workflow dispatch from ui
 
 # Terraform init
 terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
