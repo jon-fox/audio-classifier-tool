@@ -96,6 +96,8 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
             aws_request_id=receipt_handle,
             is_archived='N'
         )
+
+        logger.info(f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING")
         prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
     else:
         logger.info("No payload received")
