@@ -24,9 +24,8 @@ sudo yum install -y ecs-init
 sudo systemctl start ecs
 
 sudo systemctl status ecs 
-
  
- # AMIs
+# AMIs
 #######################
 this ami-092326650e967b14a is setup with nvidia drivers and docker
 
