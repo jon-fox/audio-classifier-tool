@@ -273,6 +273,8 @@ def get_specific_timestamps_using_llm(filename, path, lock):
         # tools=[{"type": "file_search"}],no
       )
 
+      logger.info(f"Run ID: {run.id}, Created for file: {filename} and path: {path}")
+
       return run, thread
 
 
