@@ -34,3 +34,4 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 # Updates for when working on Android App
 10/28 added a bunch of commits for jusskipit switch in podcast ui
 10/29 got the in app notification working when turning on jusskipit, need to get the icon to look like an uppercase 'J'
+10/30 got the J working, now working on encompassing circle around the J
