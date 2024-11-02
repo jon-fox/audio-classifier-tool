@@ -38,3 +38,4 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 10/31 fixed the J image with gimp and png -> svg, svg resize, svg -> vector drawable
 11/1 work on using playback manager
 java/au/com/shiftyjelly/pocketcasts/repositories/playback/PlaybackManager.kt
+added download jusskipit util class
