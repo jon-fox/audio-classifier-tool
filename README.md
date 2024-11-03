@@ -39,4 +39,4 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 11/1 work on using playback manager
 java/au/com/shiftyjelly/pocketcasts/repositories/playback/PlaybackManager.kt
 added download jusskipit util class
-11/2 didnt get a lot done, commenting here for commit history
+11/2 fixed package dependency issues by moving class to same build dir
