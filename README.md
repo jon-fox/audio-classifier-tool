@@ -40,3 +40,4 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 java/au/com/shiftyjelly/pocketcasts/repositories/playback/PlaybackManager.kt
 added download jusskipit util class
 11/2 fixed package dependency issues by moving class to same build dir
+11/3 downloadutil compiling successfully, but not building correctly :/
