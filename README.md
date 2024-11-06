@@ -42,3 +42,4 @@ added download jusskipit util class
 11/2 fixed package dependency issues by moving class to same build dir
 11/3 downloadutil compiling successfully, but not building correctly :/
 11/4 didnt do much today, inbetween waiting for election tomorrow
+11/5 election night, not paying so much time
