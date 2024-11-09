@@ -45,3 +45,4 @@ added download jusskipit util class
 11/5 election night, not paying so much time
 11/6 back to work, converted back to regular class instead of dagger
 11/7 building locally with .gradlew build --debug to figure it out
+11/8 looking into website that downloads mp3 without ads instead of app
