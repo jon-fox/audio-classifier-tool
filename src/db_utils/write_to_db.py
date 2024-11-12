@@ -42,12 +42,12 @@ def insert_podcast_metadata(**kwargs):
                 insert_query = sql.SQL("""
                     INSERT INTO podcast_metadata.s3_metadata (
                         id, podcast_name, episode_uuid, episode_name, episode_guid, episode_hash_name, episode_url, 
-                        cdn_url, api_data, api_episode_hash, local_filename, s3_location,
+                        cdn_url, image_url, api_data, api_episode_hash, local_filename, s3_location,
                         original_duration, ad_time_removed, total_processing_time, 
                         file_size, mime_type, upload_dt
                     ) VALUES (
                         %(id)s, %(podcast_name)s, %(episode_uuid)s, %(episode_name)s, %(episode_guid)s, %(episode_hash_name)s, %(episode_url)s, 
-                        %(cdn_url)s, %(api_data)s, %(api_episode_hash)s, %(local_filename)s, %(s3_location)s, 
+                        %(cdn_url)s, %(image_url)s, %(api_data)s, %(api_episode_hash)s, %(local_filename)s, %(s3_location)s, 
                         %(original_duration)s, %(ad_time_removed)s, %(total_processing_time)s, 
                         %(file_size)s, %(mime_type)s, %(upload_dt)s
                     )

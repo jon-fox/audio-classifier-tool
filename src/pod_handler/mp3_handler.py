@@ -76,6 +76,7 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
         episode_hash_name=saved_episode_name or "",
         episode_url=audio_url,
         cdn_url=cdn_url,
+        image_url=getattr(episode_data, 'imageUrl', "") or "",
         api_data=json.dumps(json_data) or "",
         api_episode_hash=getattr(episode_data, 'hash', "") or "",
         local_filename=local_path,

@@ -12,6 +12,7 @@ CREATE TABLE podcast_metadata.s3_metadata (
 	episode_hash_name text NOT NULL,
 	episode_url text NOT NULL,
 	cdn_url text NOT NULL,
+	image_url text NOT NULL,
 	api_data json NOT NULL,
 	api_episode_hash text NULL,
 	local_filename text NULL,
