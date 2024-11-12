@@ -32,17 +32,4 @@ this ami-092326650e967b14a is setup with nvidia drivers and docker
 this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
 
 # Updates for when working on Android App
-10/28 added a bunch of commits for jusskipit switch in podcast ui
-10/29 got the in app notification working when turning on jusskipit, need to get the icon to look like an uppercase 'J'
-10/30 got the J working, now working on encompassing circle around the J
-10/31 fixed the J image with gimp and png -> svg, svg resize, svg -> vector drawable
-11/1 work on using playback manager
-java/au/com/shiftyjelly/pocketcasts/repositories/playback/PlaybackManager.kt
-added download jusskipit util class
-11/2 fixed package dependency issues by moving class to same build dir
-11/3 downloadutil compiling successfully, but not building correctly :/
-11/4 didnt do much today, inbetween waiting for election tomorrow
-11/5 election night, not paying so much time
-11/6 back to work, converted back to regular class instead of dagger
-11/7 building locally with .gradlew build --debug to figure it out
-11/8 looking into website that downloads mp3 without ads instead of app
+11/11 continue working on providing sample ad free podcast to html page
