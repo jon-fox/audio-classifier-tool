@@ -33,3 +33,6 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 
 # Updates for when working on Android App
 11/11 continue working on providing sample ad free podcast to html page
+11/12 enabled CORS on the search-podcasts api endpoint and deployed, added the headers to the lambda
+return response
+https://stackoverflow.com/questions/35190615/api-gateway-cors-no-access-control-allow-origin-header
