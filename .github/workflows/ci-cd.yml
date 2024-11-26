@@ -35,9 +35,6 @@ jobs:
         role-to-assume: ${{ secrets.AWS_DEV_GITHUB_ACTION_ROLE }}
         aws-region: us-east-1
 
-    - name: Log in to Amazon ECR
-      run: aws ecr get-login-password --region ${{ vars.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.REGION }}.amazonaws.com
-
     - name: Checkout code
       uses: actions/checkout@v2
       with:
@@ -53,8 +50,7 @@ jobs:
 
     steps:
     - name: Log in to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      run: aws ecr get-login-password --region ${{ vars.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.REGION }}.amazonaws.com
 
     #   determine hash based on repo changes, taking last commit hash
     # - name: Determine the image tag
