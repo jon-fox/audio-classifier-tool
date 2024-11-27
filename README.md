@@ -31,6 +31,8 @@ this ami-092326650e967b14a is setup with nvidia drivers and docker
 
 this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
 
+ami-05f85bc16c1a0257a - latest for jusskipit_v2
+
 # Updates for when working on Android App
 11/11 continue working on providing sample ad free podcast to html page
 11/12 enabled CORS on the search-podcasts api endpoint and deployed, added the headers to the lambda
