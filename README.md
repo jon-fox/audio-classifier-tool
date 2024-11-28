@@ -34,9 +34,4 @@ this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusski
 ami-05f85bc16c1a0257a - latest for jusskipit_v2
 
 # Updates for when working on Android App
-11/11 continue working on providing sample ad free podcast to html page
-11/12 enabled CORS on the search-podcasts api endpoint and deployed, added the headers to the lambda
-return response
-https://stackoverflow.com/questions/35190615/api-gateway-cors-no-access-control-allow-origin-header
-11/13 working on school stuff today11/14 going to lunch with family will make commits when back, also working on lab for school
-11/15 working and exam, may be able to commit today
+11/28 issues using whisperx since ctranslate2 updates
