@@ -5,7 +5,7 @@ numpy==1.26.3
 torch==2.3.1
 torchaudio==2.3.1
 torchvision==0.18.1
-ctranslate2
+ctranslate2==4.4.0
 whisperx==3.1.5
 tabulate
 bs4
