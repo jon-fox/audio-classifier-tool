@@ -54,6 +54,8 @@ COPY ./requirements-whisperx.txt /app/
 # RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
 RUN python3.11 -m pip install --no-cache-dir -r requirements-whisperx.txt
 
+RUN python3.11 -m pip install torch --index-url https://download.pytorch.org/whl/cu121
+
 # Copy your application files to the container (optional)
 # COPY ./dist /app
 COPY src/ /app/src
