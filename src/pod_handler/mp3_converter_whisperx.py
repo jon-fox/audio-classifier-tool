@@ -368,3 +368,7 @@ def remove_ads_from_audio(audio_file):
     # Return the duration of the finished audio in seconds
     logger.info(f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds")
     return len(finished_audio_without_ads) / 1000, original_duration
+
+
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/ROOSTER7532232361.mp3")

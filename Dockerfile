@@ -1,6 +1,6 @@
 # Use Ubuntu 22.04 as a parent image
 # FROM ubuntu:22.04
-FROM nvidia/cuda:12.0.0-base-ubuntu22.04
+FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
 
 # Set environment variables to prevent user interaction during package installation
 ENV DEBIAN_FRONTEND=noninteractive
