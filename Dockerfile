@@ -37,7 +37,7 @@ RUN apt-get update && \
 
 # ENV PATH=/usr/local/cuda-12.4/bin:$PATH
 
-# ENV LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 
 # RUN CUDNN_PATH=$(dirname $(python3 -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))
 # ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/:$CUDNN_PATH/lib
@@ -54,7 +54,7 @@ COPY ./requirements-whisperx.txt /app/
 # RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
 RUN python3.11 -m pip install --no-cache-dir -r requirements-whisperx.txt
 
-RUN python3.11 -m pip install torch --index-url https://download.pytorch.org/whl/cu121
+# RUN python3.11 -m pip install torch --index-url https://download.pytorch.org/whl/cu121
 
 # Copy your application files to the container (optional)
 # COPY ./dist /app
