@@ -18,6 +18,8 @@ RUN apt-get update && \
     python3-pip \
     python3.11-dev \
     build-essential \
+    libcudnn8 \
+    libcudnn8-dev \
     vim \
     iputils-ping \
     software-properties-common wget \
