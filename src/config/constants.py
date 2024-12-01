@@ -8,7 +8,7 @@ DOWNLOAD_DIR = os.path.join(BASE_PATH, 'downloads')
 FINISHED_MP3_DIR = os.path.join(BASE_PATH, 'output')
 MODEL_DOWNLOAD_PATH = os.path.join(BASE_PATH, 'local_models', 'tiny')
 MODEL_FILE_NAME = "tiny.pt"
-NUMBER_OF_MODELS = os.getenv('NUMBER_OF_MODELS', 8)
+NUMBER_OF_MODELS = int(os.getenv('NUMBER_OF_MODELS', 8))
 MODEL_SIZE = "tiny"
 
 ADS_TXT_PATH = os.path.join(BASE_PATH, 'src', 'ad_utils', 'popular_ads.txt')

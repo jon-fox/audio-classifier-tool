@@ -94,7 +94,7 @@ def find_ad_timestamps(transcript):
 
     # TODO need to capture the words that kicked off the ad segment
     for t_segment in transcript:
-        text = t_segment['text'].lower()
+        text = t_segment.text.lower()
 
         # high_certainty = any(company.lower() in text for company in ad_companies)
 
@@ -102,8 +102,8 @@ def find_ad_timestamps(transcript):
                 any(pattern.search(text) for pattern in ad_keywords_compiled)
 
         if contains_ad:
-            start = max(0, t_segment['start'] - START_AD_BUFFER)
-            end = t_segment['end'] + END_AD_BUFFER
+            start = max(0, t_segment.start - START_AD_BUFFER)
+            end = t_segment.end + END_AD_BUFFER
 
             # logging ad segment keywords to file
             # with open("ad_keywords.txt", "a") as file:
@@ -245,7 +245,7 @@ def process_audio_segment(index, audio_segment):
             # max_ms = min_ms + 300
             # logger.info(f"SETTING::: min_ms: {min_ms}, max_ms: {max_ms}")
         # Extract the segments containing ads for logging
-        segments = extract_segments(result["segments"], min_ms, max_ms)
+        segments = extract_segments(result, min_ms, max_ms)
 
         ################################################################
 
