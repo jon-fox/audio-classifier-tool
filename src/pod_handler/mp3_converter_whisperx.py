@@ -213,10 +213,11 @@ def process_audio_segment(index, audio_segment):
         segment_path = f"segment_{index}.wav"
         audio_segment.export(segment_path, format="wav")
         # audio = whisperx.load_audio(segment_path)
-        result = model.transcribe(segment_path, language="en")
+        result, info = model.transcribe(segment_path, language="en")
         # Clean up segment file after use
         # logger.info(f"Finding Timestamps for segment index {index}")
-        min_ms, max_ms = find_ad_timestamps(result["segments"])
+        # min_ms, max_ms = find_ad_timestamps(result["segments"])
+        min_ms, max_ms = find_ad_timestamps(result)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -370,5 +371,5 @@ def remove_ads_from_audio(audio_file):
     return len(finished_audio_without_ads) / 1000, original_duration
 
 
-# if __name__ == "__main__":
-#     remove_ads_from_audio("downloads/ROOSTER7532232361.mp3")
+if __name__ == "__main__":
+    remove_ads_from_audio("downloads/ROOSTER7532232361.mp3")
