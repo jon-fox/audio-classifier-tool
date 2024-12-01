@@ -6,7 +6,7 @@ torch==2.5.1
 torchaudio==2.5.1
 torchvision==0.20.1
 ctranslate2==4.4.0
-whisperx==3.1.5
+faster-whisper==1.1.0
 tabulate
 bs4
 selenium
