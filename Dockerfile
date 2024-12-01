@@ -1,6 +1,7 @@
 # Use Ubuntu 22.04 as a parent image
 # FROM ubuntu:22.04
-FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
+# FROM nvidia/cuda:12.3.2-cudnn9-runtime-ubuntu22.04
+FROM nvidia/cuda:12.0.0-base-ubuntu22.04
 
 # Set environment variables to prevent user interaction during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -37,7 +38,7 @@ RUN apt-get update && \
 
 # ENV PATH=/usr/local/cuda-12.4/bin:$PATH
 
-ENV LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
+# ENV LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 
 # RUN CUDNN_PATH=$(dirname $(python3 -c "import nvidia.cudnn;print(nvidia.cudnn.__file__)"))
 # ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/:$CUDNN_PATH/lib
