@@ -142,11 +142,14 @@ def extract_segments(segments, start_time, end_time):
         end_time (float): The end time of the desired segments.
 
     Returns:
-        list: A list of extracted segments that fall within the specified time range.
+        list: A list of extracted segments that fall within the specified tii me range.
     """
     # data = json.loads(json_string)
     # segments = data['segments']
-    extracted_segments = [segment for segment in segments if start_time <= segment['start'] <= end_time]
+    # print(f"Extracing Segments: {segments}")
+    extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
+    # for segment in segments:
+    #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
     return extracted_segments
 
 # set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
@@ -213,8 +216,10 @@ def process_audio_segment(index, audio_segment):
         segment_path = f"segment_{index}.wav"
         audio_segment.export(segment_path, format="wav")
         # audio = whisperx.load_audio(segment_path)
-        result, info = model.transcribe(segment_path, language="en")
-        # Clean up segment file after use
+        result_generator, info = model.transcribe(segment_path, language="en")
+        # Convert the generator to a list
+        result = list(result_generator)
+        # print(f"Result: {result}")
         # logger.info(f"Finding Timestamps for segment index {index}")
         # min_ms, max_ms = find_ad_timestamps(result["segments"])
         min_ms, max_ms = find_ad_timestamps(result)
