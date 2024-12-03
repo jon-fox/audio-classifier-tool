@@ -18,8 +18,8 @@ import threading
 
 # buffers to try and capture ad time after keyword is mentioned
 # be careful with these, results in larger token cost to ai model
-START_AD_BUFFER = 15
-END_AD_BUFFER = 15
+START_AD_BUFFER = 30
+END_AD_BUFFER = 30
 
 MINIMUM_AD_SKIP_TIME = 15 # Minimum time to skip an ad segment
 
