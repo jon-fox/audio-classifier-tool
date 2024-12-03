@@ -286,10 +286,10 @@ def process_audio_segment(index, audio_segment):
         end_ads_ms = round(max_ms * 1000)
 
         if start_ads_ms < 0:
-            logger.info("transcript_{index}_logging.json Start time is less than 0 or None, setting to 0", start_ads_ms)
+            logger.info("transcript_{index}_logging.json Start time is less than 0, setting to 0", start_ads_ms)
             start_ads_ms = 0
         if end_ads_ms > len(audio_segment):
-            logger.info(f"transcript_{index}_logging.json End time is greater than segment duration or None, setting to segment duration", end_ads_ms)
+            logger.info(f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration", end_ads_ms)
             end_ads_ms = len(audio_segment)
         # audio = AudioSegment.from_wav("sliced_result.wav")
         logger.info(f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json")
@@ -378,4 +378,4 @@ def remove_ads_from_audio(audio_file):
 
 
 if __name__ == "__main__":
-    remove_ads_from_audio("downloads/ROOSTER7532232361.mp3")
+    remove_ads_from_audio("downloads/potp1199art19.mp3")
