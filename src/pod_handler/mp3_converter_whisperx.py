@@ -206,7 +206,7 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment):
+def process_audio_segment(index, audio_segment, total_segments):
     try:
         # TODO lets try using openai's model api call here
         # model = whisper.load_model("tiny", device="cuda")
@@ -222,7 +222,19 @@ def process_audio_segment(index, audio_segment):
         # print(f"Result: {result}")
         # logger.info(f"Finding Timestamps for segment index {index}")
         # min_ms, max_ms = find_ad_timestamps(result["segments"])
-        min_ms, max_ms = find_ad_timestamps(result)
+        if index == 0:
+            min_ms = 0 # 0 in milliseconds
+            max_ms = 4 * 60 * 1000  # 4 minutes in milliseconds
+            logger.info(f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json")
+            logger.info("Searching the first segment because it is likely to have ads")
+        elif index == total_segments - 1:
+            segment_duration_ms = len(audio_segment)
+            min_ms = max(0, segment_duration_ms - 3 * 60 * 1000)  # 3 minutes before the end
+            max_ms = segment_duration_ms  # Length of the audio segment
+            logger.info(f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json")
+            logger.info("Searching the last segment because it is likely to have ads")
+        else:
+            min_ms, max_ms = find_ad_timestamps(result)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -351,7 +363,7 @@ def remove_ads_from_audio(audio_file):
     with concurrent.futures.ThreadPoolExecutor(max_workers=model_pool.qsize()) as executor:
         logger.info(f"Using {model_pool.qsize()} models for processing")
         # Submit all segments to the executor
-        future_to_segment = {executor.submit(process_audio_segment, i, segments[i]): i for i in range(len(segments))}
+        future_to_segment = {executor.submit(process_audio_segment, i, segments[i], len(segments)): i for i in range(len(segments))}
         
         # Collect results as they complete
         results = []
