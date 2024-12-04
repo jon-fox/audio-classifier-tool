@@ -229,7 +229,7 @@ def process_audio_segment(index, audio_segment, total_segments):
             logger.info("Searching the first segment because it is likely to have ads")
         elif index == total_segments - 1:
             segment_duration_ms = len(audio_segment)
-            min_ms = max(0, segment_duration_ms - 3 * 60 * 1000)  # 3 minutes before the end
+            min_ms = max(0, segment_duration_ms - (3 * 60 * 1000))  # 3 minutes before the end
             max_ms = segment_duration_ms  # Length of the audio segment
             logger.info(f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json")
             logger.info("Searching the last segment because it is likely to have ads")
@@ -298,10 +298,10 @@ def process_audio_segment(index, audio_segment, total_segments):
         end_ads_ms = round(max_ms * 1000)
 
         if start_ads_ms < 0:
-            logger.info("transcript_{index}_logging.json Start time is less than 0, setting to 0", start_ads_ms)
+            logger.info(f"transcript_{index}_logging.json Start time is less than 0, setting to 0 {start_ads_ms}")
             start_ads_ms = 0
         if end_ads_ms > len(audio_segment):
-            logger.info(f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration", end_ads_ms)
+            logger.info(f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration {end_ads_ms}")
             end_ads_ms = len(audio_segment)
         # audio = AudioSegment.from_wav("sliced_result.wav")
         logger.info(f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json")
@@ -390,4 +390,4 @@ def remove_ads_from_audio(audio_file):
 
 
 if __name__ == "__main__":
-    remove_ads_from_audio("downloads/potp1199art19.mp3")
+    remove_ads_from_audio("downloads/potp1200art19.mp3")

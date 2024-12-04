@@ -130,10 +130,10 @@ def _create_thread(filename, path, lock):
   logger.info(file_batch.status)
   logger.info(file_batch.file_counts)
 
-  assistant = client.beta.assistants.update(
-    assistant_id=_retrieve_assistant(lock),
-    tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
-  )
+  # assistant = client.beta.assistants.update(
+  #   assistant_id=_retrieve_assistant(lock),
+  #   tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
+  # )
 
   # Upload the user provided file to OpenAI
   # message_file = client.files.create(
