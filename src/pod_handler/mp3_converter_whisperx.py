@@ -390,4 +390,4 @@ def remove_ads_from_audio(audio_file):
 
 
 if __name__ == "__main__":
-    remove_ads_from_audio("downloads/potp1200art19.mp3")
+    remove_ads_from_audio("downloads/potp1201art19.mp3")
