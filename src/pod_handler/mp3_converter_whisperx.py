@@ -389,5 +389,5 @@ def remove_ads_from_audio(audio_file):
     return len(finished_audio_without_ads) / 1000, original_duration
 
 
-if __name__ == "__main__":
-    remove_ads_from_audio("downloads/potp1201art19.mp3")
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/potp1201art19.mp3")
