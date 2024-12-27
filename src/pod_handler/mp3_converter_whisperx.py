@@ -148,6 +148,7 @@ def extract_segments(segments, start_time, end_time):
     # segments = data['segments']
     # print(f"Extracing Segments: {segments}")
     try:
+        logger.info(f"Extracting segments: start_time={start_time}, end_time={end_time}")
         extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
     except Exception as e:
         logger.error(f"Error extracting segments: {e}")
@@ -242,7 +243,7 @@ def process_audio_segment(index, audio_segment, total_segments):
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
-        logger.error(traceback.print_exc())
+        logger.error(traceback.format_exc())
         raise Exception(f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}")
 
     # logger.info(f"ad timestamps: {ad_timestamps}")
@@ -380,7 +381,7 @@ def remove_ads_from_audio(audio_file):
                 results.append((segment_index, result))  # Store results along with their original index
             except Exception as exc:
                 logger.error(f"Segment {segment_index} generated an exception: {exc}")
-                traceback.print_exc()
+                logger.error(traceback.format_exc())
         # executor.shutdown(wait=True)
     logger.info(f"Finished processing audio segments, exporting finished mp3")
     results.sort(key=lambda x: x[0])
