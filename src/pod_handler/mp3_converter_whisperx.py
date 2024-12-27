@@ -253,7 +253,7 @@ def process_audio_segment(index, audio_segment, total_segments):
     logger.info(f"##############################################")
 
     # Slice audio before and after the ad
-    # os.remove(segment_path)
+    os.remove(segment_path) # remove the audio segment after processing
     if min_ms == float('inf') and max_ms == float('-inf'):
         logger.info(f"No ads found in the segment for transcript transcript_{index}_logging.json")
         return audio_segment
