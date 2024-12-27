@@ -271,10 +271,13 @@ def process_audio_segment(index, audio_segment, total_segments):
         segments = extract_segments(result, min_ms, max_ms)
 
         ################################################################
-
-        with open(f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8") as file:
-            logger.info(f"Logging ad segments to {script_dir}/transcript_{index}_logging.json")
-            json.dump(segments, file, indent=2, ensure_ascii=False)
+        try:
+            with open(f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8") as file:
+                logger.info(f"Logging ad segments to {script_dir}/transcript_{index}_logging.json")
+                json.dump(segments, file, indent=2, ensure_ascii=False)
+        except TypeError as e:
+            logger.error(f"Serialization failed with error: {e}")
+            logger.error(traceback.format_exc())
         
         logger.info(f"Before entering the lock for index {index}: {threading.get_ident()}")
 

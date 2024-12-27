@@ -11,7 +11,6 @@ tabulate
 bs4
 selenium
 html5lib
-selenium
 backoff
 psycopg2
 graphene
@@ -20,3 +19,4 @@ httpx
 pandas
 boto3
 aiohttp
+pydantic
