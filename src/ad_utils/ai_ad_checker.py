@@ -113,7 +113,7 @@ def _retrieve_assistant(lock):
 def _create_thread(filename, path, lock):
   # thread = client.beta.threads.create()
 
-  # Create a vector store caled "Financial Statements"
+  # Create a vector store called "Financial Statements"
   vector_store = client.beta.vector_stores.create(name=filename)
 
   # Ready the files for upload to OpenAI

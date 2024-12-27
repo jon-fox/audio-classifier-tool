@@ -147,7 +147,11 @@ def extract_segments(segments, start_time, end_time):
     # data = json.loads(json_string)
     # segments = data['segments']
     # print(f"Extracing Segments: {segments}")
-    extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
+    try:
+        extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
+    except Exception as e:
+        logger.error(f"Error extracting segments: {e}")
+        raise Exception(f"An error occurred during segment extraction: {str(e)}")
     # for segment in segments:
     #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
     return extracted_segments
@@ -262,6 +266,7 @@ def process_audio_segment(index, audio_segment, total_segments):
             # max_ms = min_ms + 300
             # logger.info(f"SETTING::: min_ms: {min_ms}, max_ms: {max_ms}")
         # Extract the segments containing ads for logging
+        logger.info(f"Extracting segments for transcript_{index}_logging.json")
         segments = extract_segments(result, min_ms, max_ms)
 
         ################################################################
@@ -389,5 +394,5 @@ def remove_ads_from_audio(audio_file):
     return len(finished_audio_without_ads) / 1000, original_duration
 
 
-# if __name__ == "__main__":
-#     remove_ads_from_audio("downloads/potp1201art19.mp3")
+if __name__ == "__main__":
+    remove_ads_from_audio("downloads/potp1201art19.mp3")
