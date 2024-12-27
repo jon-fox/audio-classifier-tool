@@ -274,6 +274,8 @@ def process_audio_segment(index, audio_segment, total_segments):
         try:
             with open(f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8") as file:
                 logger.info(f"Logging ad segments to {script_dir}/transcript_{index}_logging.json")
+                logger.info(f"Segments type for transcript_{index}_logging.json: {type(segments)}")
+                logger.info(f"Segments for transcript_{index}_logging.json: {segments}")
                 json.dump(segments, file, indent=2, ensure_ascii=False)
         except TypeError as e:
             logger.error(f"Serialization failed with error: {e}")
@@ -398,5 +400,5 @@ def remove_ads_from_audio(audio_file):
     return len(finished_audio_without_ads) / 1000, original_duration
 
 
-if __name__ == "__main__":
-    remove_ads_from_audio("downloads/potp1201art19.mp3")
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/potp1201art19.mp3")
