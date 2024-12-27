@@ -2,6 +2,7 @@ from pydub import AudioSegment
 from faster_whisper import WhisperModel
 import concurrent.futures
 import json
+# import json_tricks
 import os
 import re
 import time
@@ -149,7 +150,24 @@ def extract_segments(segments, start_time, end_time):
     # print(f"Extracing Segments: {segments}")
     try:
         logger.info(f"Extracting segments: start_time={start_time}, end_time={end_time}")
-        extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
+        # extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
+
+        extracted_segments = [
+            {
+                # "id": segment.id,
+                # "seek": segment.seek,
+                "start": segment.start,
+                "end": segment.end,
+                "text": segment.text,
+                # "tokens": segment.tokens,
+                # "temperature": segment.temperature,
+                # "avg_logprob": segment.avg_logprob,
+                # "compression_ratio": segment.compression_ratio,
+                # "no_speech_prob": segment.no_speech_prob,
+                # "words": segment.words,
+            }
+            for segment in segments if start_time <= segment.start <= end_time
+        ]
     except Exception as e:
         logger.error(f"Error extracting segments: {e}")
         raise Exception(f"An error occurred during segment extraction: {str(e)}")
@@ -274,9 +292,10 @@ def process_audio_segment(index, audio_segment, total_segments):
         try:
             with open(f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8") as file:
                 logger.info(f"Logging ad segments to {script_dir}/transcript_{index}_logging.json")
-                logger.info(f"Segments type for transcript_{index}_logging.json: {type(segments)}")
-                logger.info(f"Segments for transcript_{index}_logging.json: {segments}")
+                # logger.info(f"Segments type for transcript_{index}_logging.json: {type(segments)}")
+                # logger.info(f"Segments for transcript_{index}_logging.json: {segments}")
                 json.dump(segments, file, indent=2, ensure_ascii=False)
+                # json_tricks.dump(segments, file, indent=2, ensure_ascii=False)
         except TypeError as e:
             logger.error(f"Serialization failed with error: {e}")
             logger.error(traceback.format_exc())
@@ -400,5 +419,5 @@ def remove_ads_from_audio(audio_file):
     return len(finished_audio_without_ads) / 1000, original_duration
 
 
-# if __name__ == "__main__":
-#     remove_ads_from_audio("downloads/potp1201art19.mp3")
+if __name__ == "__main__":
+    remove_ads_from_audio("downloads/potp1201art19.mp3")
