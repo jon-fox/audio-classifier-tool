@@ -1,5 +1,6 @@
 import boto3
 from src.logger.logger_setup import logger
+import mimetypes
 
 
 def upload_file_to_s3(bucket_name, s3_key, local_path):
@@ -16,7 +17,15 @@ def upload_file_to_s3(bucket_name, s3_key, local_path):
         logger.error(f"Error getting S3 client: {e}")
         raise e
 
-    content_type = 'audio/mpeg'
+    if local_path.lower().endswith('.mp3'):
+        content_type = 'audio/mpeg'
+    elif local_path.lower().endswith('.json'):
+        content_type = 'application/json'
+    else:
+        content_type, _ = mimetypes.guess_type(local_path)
+        if content_type is None:
+            content_type = 'application/octet-stream'  # Default content type if unknown
+
     extra_args = {'ContentType': content_type}
 
     try:

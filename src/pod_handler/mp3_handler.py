@@ -42,7 +42,7 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
     saved_episode_name = f"{hashkey}.mp3"
     file_size, local_path = download_episode(saved_episode_name, audio_url, DOWNLOAD_DIR)
 
-    podcast_length, original_duration = remove_ads_from_audio(audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name))
+    podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name))
 
     logger.info(f"Episode {saved_episode_name} has been processed, ads removed, new duration: "
                 f"{podcast_length} vs original duration: {original_duration}")
@@ -60,7 +60,7 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
 
     logger.info(f"Uploaded file to {s3_location}")
 
-    upload_file_to_s3(BUCKET_NAME, episode_s3_key, local_path)
+    upload_file_to_s3(BUCKET_NAME, episode_s3_key, mp3_output_path)
 
     logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
     logger.info(f"Episode Length: {podcast_length} seconds, "

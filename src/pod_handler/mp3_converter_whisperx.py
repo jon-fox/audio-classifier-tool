@@ -413,11 +413,14 @@ def remove_ads_from_audio(audio_file):
     finished_audio_without_ads = sum(x[1] for x in results)
     # Save the result
     finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
+
+    output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
+
     # Return the duration of the finished audio in seconds
     logger.info(f"Audio with ads duration: {original_duration} seconds")
     logger.info(f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds")
-    return len(finished_audio_without_ads) / 1000, original_duration
+    return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
 
 
-if __name__ == "__main__":
-    remove_ads_from_audio("downloads/potp1201art19.mp3")
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/potp1201art19.mp3")
