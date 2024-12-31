@@ -60,7 +60,8 @@ def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey
             'url': audio_url,
             'description': request_body['description'],
             'podcast_name': sanitized_podcast_name,
-            'podcast_length_seconds': episode_length
+            'podcast_length_seconds': episode_length,
+            'data': request_body['data']
         })
     )
     logger.info(f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}")
