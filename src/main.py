@@ -51,10 +51,8 @@ def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
 
 def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey, audio_url, request_body):
     logger.info(f"Invoking RSS Feed Update Lambda for episode {sanitized_podcast_name}, and hash {hashkey}")
-    response = lambda_client.invoke(
-        FunctionName='jusskipit_rssfeed_update_lambda',
-        InvocationType='Event',  # Asynchronous invocation
-        Payload=json.dumps({
+
+    payload = {
             'episode_id': hashkey,
             'name': request_body['episode_name'],
             'url': audio_url,
@@ -62,7 +60,16 @@ def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey
             'podcast_name': sanitized_podcast_name,
             'podcast_length_seconds': episode_length,
             'data': request_body['data']
-        })
+        }
+
+    payload.update(request_body['data'])
+
+    logger.info(f"Payload for RSS Feed Update Lambda::{payload}")
+
+    response = lambda_client.invoke(
+        FunctionName='jusskipit_rssfeed_update_lambda',
+        InvocationType='Event',  # Asynchronous invocation
+        Payload=json.dumps(payload)
     )
     logger.info(f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}")
     logger.info(f"Response from RSS Feed Update Lambda: {response}")
