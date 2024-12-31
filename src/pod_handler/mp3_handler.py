@@ -136,3 +136,5 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
             logger.info(f"Removed local audio file: {audio_path}")
         except Exception as e:
             logger.error(f"Error removing local audio file: {e}")
+    
+    return podcast_length

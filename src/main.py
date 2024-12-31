@@ -16,6 +16,7 @@ import requests
 
 ssm = boto3.client('ssm', region_name='us-east-1')
 sqs_client = boto3.client('sqs', 'us-east-1')
+lambda_client = boto3.client('lambda', 'us-east-1')
 
 # Configuration
 REGION = os.getenv("REGION", "us-east-1")
@@ -37,13 +38,34 @@ def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
     try:
         s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3" #HACK may shorten this later
         cdn_url = f"{CDN_BASE_URL}/{s3_path}"
-        mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
+        processed_podcast_length = mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
+        logger.info(f"MP3 file processed::{processed_podcast_length}")
         logger.info(f"Json data from Taddy API::{json_data}")
         logger.info(f"File uploaded to Space::{BUCKET_NAME}, " 
                     f"Episode::{episode_hash}, CDN URL::{cdn_url}")
+        return processed_podcast_length, cdn_url
     except Exception as e:
         logger.error(f"Error processing MP3 file::{e}")
         raise e
+    
+
+def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey, audio_url, request_body):
+    logger.info(f"Invoking RSS Feed Update Lambda for episode {sanitized_podcast_name}, and hash {hashkey}")
+    response = lambda_client.invoke(
+        FunctionName='jusskipit_rssfeed_update_lambda',
+        InvocationType='Event',  # Asynchronous invocation
+        Payload=json.dumps({
+            'episode_id': hashkey,
+            'name': request_body['episode_name'],
+            'url': audio_url,
+            'description': request_body['description'],
+            'podcast_name': sanitized_podcast_name,
+            'podcast_length_seconds': episode_length
+        })
+    )
+    logger.info(f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}")
+    logger.info(f"Response from RSS Feed Update Lambda: {response}")
+    return response
     
 
 def get_instance_id():
@@ -98,7 +120,12 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
         )
 
         logger.info(f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING")
-        prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
+        processed_podcast_length, cdn_url = prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
+        logger.info(f"Processed podcast length::{processed_podcast_length}, CDN URL::{cdn_url}")
+        if payload.get('add_to_rss_feed', False):
+            logger.info(f"Adding episode to Rss feed::{episode_hash}, invoking rss feed update lambda")
+            invoke_rssfeed_update_lambda(podcast_name, processed_podcast_length, episode_hash, cdn_url, payload)
+            logger.info(f"RSS Feed Update Lambda invoked for episode {podcast_name}, and hash {episode_hash}")
     else:
         logger.info("No payload received")
 
