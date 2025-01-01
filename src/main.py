@@ -52,17 +52,16 @@ def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
 def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey, audio_url, request_body):
     logger.info(f"Invoking RSS Feed Update Lambda for episode {sanitized_podcast_name}, and hash {hashkey}")
 
+    data = request_body['data']
+
     payload = {
-            'episode_id': hashkey,
-            'name': request_body['episode_name'],
-            'url': audio_url,
-            'description': request_body['description'],
-            'podcast_name': sanitized_podcast_name,
-            'podcast_length_seconds': episode_length,
-            'data': request_body['data']
+            'user_feed': data['user_feed'],
+            'episodes': data['episodes'],
+            'feed_episodes': data['feed_episodes']
         }
 
-    payload.update(request_body['data'])
+    payload['episodes'][0]['url'] = audio_url
+    payload['episodes'][0]['podcast_length_seconds'] = episode_length
 
     logger.info(f"Payload for RSS Feed Update Lambda::{payload}")
 
