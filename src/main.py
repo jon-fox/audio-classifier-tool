@@ -63,12 +63,14 @@ def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey
     payload['episodes'][0]['url'] = audio_url
     payload['episodes'][0]['podcast_length_seconds'] = episode_length
 
-    logger.info(f"Payload for RSS Feed Update Lambda::{payload}")
+    data_payload = {'data': payload}
+
+    logger.info(f"Payload for RSS Feed Update Lambda::{data_payload}")
 
     response = lambda_client.invoke(
         FunctionName='jusskipit_rssfeed_update_lambda',
         InvocationType='Event',  # Asynchronous invocation
-        Payload=json.dumps(payload)
+        Payload=json.dumps(data_payload)
     )
     logger.info(f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}")
     logger.info(f"Response from RSS Feed Update Lambda: {response}")
