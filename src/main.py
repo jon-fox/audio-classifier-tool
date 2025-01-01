@@ -61,7 +61,7 @@ def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey
         }
 
     payload['episodes'][0]['url'] = audio_url
-    payload['episodes'][0]['podcast_length_seconds'] = episode_length
+    payload['episodes'][0]['podcast_length_seconds'] = str(episode_length)
 
     data_payload = {'data': payload}
 
