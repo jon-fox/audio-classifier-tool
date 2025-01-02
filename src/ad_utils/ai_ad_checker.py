@@ -66,7 +66,7 @@ Be concise, providing only the confidence score and the timestamps for each ad s
 
 Example Output:
 Confidence Score: [85]
-Timestamps: [0:00] - [0:30]"""
+Timestamps: [0.00] - [30.00]"""
 
 def _create_assistant():
   
@@ -232,7 +232,8 @@ def parse_message(message):
     # input_string = "Confidence Score[95]\n\nTimestamps:\n- 242.66 to 253.38\n- 269.06 to 273.48\n- 275.08 to 285.98\n- 289.36 to 294.35\n- 305.44 to 315.08"
 
     # Extract confidence score
-    confidence_score = int(re.search(r'Confidence Score\s*\[?(\d+)\]?', message, re.IGNORECASE).group(1))
+    message = re.sub(r'\s+', ' ', message.strip())  # Normalize whitespace
+    confidence_score = int(re.search(r'Confidence\s*Score[:\s]*\[?(\d+)\]?', message, re.IGNORECASE).group(1))
 
     # Extract all numeric values from the timestamps
     numeric_values = [float(num) for num in re.findall(r'(\d+\.\d+)', message)]
