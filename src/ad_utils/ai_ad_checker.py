@@ -36,29 +36,37 @@ assistant_id = None
 
 # this is the most important indicator for an ad being present
 
-instructions = f"""on a scale of 1 - 100 what degree of confidence
-        do you have that the attached text contains an advertisement.
-        Give the confidence score as 'Confidence Score['Score']'.
-        If your confidence is greater than {CONFIDENCE_SCORE} then please give the
-        specific timestamps from the start of the ad segments to the end. 
-        The output timestamps should be in the format 'Timestamps: [Start] - [End]', 
-        and match the format of the timestamps in the transcript.
-        Just provide the minimum and maximum timestamps for each ad segment.
-        When determining timestamps, consider that in most cases a particular ad segment will run from
-        30 to 60 seconds. Longer or shorter ads are possible, but this is a good rule of thumb when 
-        determining the timestamp of each ad segment.
-        
-        Consider that advertisements will usually have an explicit sponsor mentioned,
-        a change in tone or pace, or a jingle. They will often encourage the listener to 
-        purchase or subscribe to something. The advertisement could also be catered to a listener's
-        business. Ad text will often contain Often a call to action is also given,
-        such as visiting a specific site, using a promo code, a discount is available, etc.
+instructions = f"""On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
+Confidence Score: [Score]
 
-        If there is no sponsor explicitly mentioned, then lower the confidence score significantly.
-        
-        If no sponsor is explicitly mentioned then the confidence score should be less than 50.
+If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
+Timestamps: [Start] - [End]
 
-        Be Concise, only provide the score and the timestamps."""
+Guidelines for Detection:
+Mentions of Organizations: Advertisements often mention a sponsor, company, or organization multiple times. 
+This could include selling a service or subscription, promoting a business, enrolling in an institution, or highlighting a company's values or services.
+
+Calls to Action: Look for language encouraging the listener to take specific actions, such as visiting a website, using a promo code, enrolling in a program, or subscribing to a service.
+
+Distinctive Features: Ads may include a change in tone, pace, or style (e.g., jingles, slogans, or repetitive phrasing).
+
+Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting corporate social responsibility).
+
+Selling or Subscribing: Many advertisements aim to encourage the listener to purchase a product, enroll in a service, or subscribe to ongoing offerings (e.g., "Sign up at our website" or "Enroll today for a discount").
+
+Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions for podcast listeners. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
+
+Scoring and Timestamping:
+Assign a higher confidence score if the text contains explicit mentions of an organization or sponsor, strong calls to action, or promotional language.
+If no sponsor or organization is explicitly mentioned, reduce the confidence score significantly (e.g., below 50).
+Typically, ads run for 30-60 seconds, though variations are possible. Use this as a guideline when determining timestamps.
+
+Output:
+Be concise, providing only the confidence score and the timestamps for each ad segment.
+
+Example Output:
+Confidence Score: [85]
+Timestamps: [0:00] - [0:30]"""
 
 def _create_assistant():
   

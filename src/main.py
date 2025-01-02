@@ -41,7 +41,7 @@ def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
         processed_podcast_length = mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
         logger.info(f"MP3 file processed::{processed_podcast_length}")
         logger.info(f"Json data from Taddy API::{json_data}")
-        logger.info(f"File uploaded to Space::{BUCKET_NAME}, " 
+        logger.info(f"File uploaded to S3::{BUCKET_NAME}, " 
                     f"Episode::{episode_hash}, CDN URL::{cdn_url}")
         return processed_podcast_length, cdn_url
     except Exception as e:
