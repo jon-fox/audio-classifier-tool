@@ -1,20 +1,16 @@
 import openai
 from openai import OpenAI
 # from openai import AsyncOpenAI
-from openai import AssistantEventHandler
-from typing_extensions import override
-from pprint import pprint
-from src.config.constants import CONFIDENCE_SCORE
+# from openai import AssistantEventHandler
+# from typing_extensions import override
+# from pprint import pprint
+import re
+from src.config.constants import CONFIDENCE_SCORE, MODEL_NAME
 import time
 import backoff
 from src.logger.logger_setup import logger
 import boto3
-import os
-# from threading import Lock
-# from model.conversation_storage import store_conversation
-# from langchain_community.document_loaders import PyPDFLoader
-# from langchain_community.vectorstores import FAISS
-# from langchain_openai import OpenAIEmbeddings
+# import os
 
 try:
     ssm = boto3.client('ssm', region_name='us-east-1')
@@ -36,7 +32,13 @@ assistant_id = None
 
 # this is the most important indicator for an ad being present
 
-instructions = f"""On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
+ad_checker_assistant_instructions = """
+Your role is to analyze text or files for advertisements. Prioritize accuracy and ensure all responses are concise and well-structured. 
+When provided with specific scoring or timestamping instructions, follow them carefully.
+"""
+
+
+ad_checker_thread_instructions_template = f"""On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
 Confidence Score: [Score]
 
 If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
@@ -56,7 +58,7 @@ Selling or Subscribing: Many advertisements aim to encourage the listener to pur
 
 Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions for podcast listeners. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
 
-Scoring and Timestamping:
+{optional_sponsors_section}Scoring and Timestamping:
 Assign a higher confidence score if the text contains explicit mentions of an organization or sponsor, strong calls to action, or promotional language.
 If no sponsor or organization is explicitly mentioned, reduce the confidence score significantly (e.g., below 50).
 Typically, ads run for 30-60 seconds, though variations are possible. Use this as a guideline when determining timestamps.
@@ -68,30 +70,35 @@ Example Output:
 Confidence Score: [85]
 Timestamps: [0.00] - [30.00]"""
 
+sponsor_instructions = f"""Please review the following podcast 
+description and extract only the names of sponsors, advertisers, 
+companies, or organizations mentioned. Exclude any other details, links, or additional context. 
+Provide just the names.
+
+Example Output:
+Sponsors: [Company A, Company B]"""
+
+def get_ad_checker_instructions(sponsors):
+    if sponsors:
+        sponsors_list = ", ".join(sponsors)
+        optional_sponsors_section = f"If one of these sponsor names 
+        are present then greatly increase the confidence score 
+        that an ad is present: {sponsors_list}\n\n"
+    else:
+        optional_sponsors_section = ""
+    
+    return ad_checker_thread_instructions_template.format(optional_sponsors_section=optional_sponsors_section)
+
+
 def _create_assistant():
-  
-#   instructions = f"""
-#     You are tasked with identifying advertisement segments in the attached transcript. 
-#     Please follow these instructions:
-
-#     1. On a scale of 1 to 100, what degree of confidence do you have that the attached text contains an advertisement?
-#     - Provide the confidence score in the format: 'Confidence Score: [Score]'.
-
-#     2. If your confidence score is greater than 50, identify the specific timestamps for each ad segment.
-#     - Provide the start and end timestamps for each ad segment in the format: 'Timestamps: [Start] - [End]'.
-
-#     Be concise and only provide the confidence score and the timestamps.
-#     """
-
-  # logger.info(f"Creating assistant with instructions: {instructions}")
 
   assistant = client.beta.assistants.create(
     name="Podcast Advertisement Recognizer",
-    instructions=instructions,
+    instructions=ad_checker_assistant_instructions,
     tools=[{"type": "file_search"}],
     temperature=0,
   #   model="gpt-4-turbo-preview",
-    model="gpt-4o",
+    model=MODEL_NAME,
     # model="US Immigration Law AI",
     # https://chat.openai.com/g/g-2g79Fgyn6-us-immigration-law-ai
   )
@@ -118,7 +125,7 @@ def _retrieve_assistant(lock):
       return assistant_id
 
 
-def _create_thread(filename, path, lock):
+def _create_thread(filename, path, sponsors, lock):
   # thread = client.beta.threads.create()
 
   # Create a vector store called "Financial Statements"
@@ -137,16 +144,6 @@ def _create_thread(filename, path, lock):
   # You can print the status and the file counts of the batch to see the result of this operation.
   logger.info(file_batch.status)
   logger.info(file_batch.file_counts)
-
-  # assistant = client.beta.assistants.update(
-  #   assistant_id=_retrieve_assistant(lock),
-  #   tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
-  # )
-
-  # Upload the user provided file to OpenAI
-  # message_file = client.files.create(
-  #   file=open(path, "rb"), purpose="assistants"
-  # )
   
   # print(f"File ID: {message_file.id}, Created for file: {filename} and path: {path}")
   logger.info(f"File ID: {file_batch.id}, Created for file: {filename} and path: {path}")
@@ -156,12 +153,7 @@ def _create_thread(filename, path, lock):
     messages=[
       {
         "role": "user",
-        "content": instructions,
-        # Attach the new file to the message.
-        # "attachments": [
-          # { "file_id": file_batch.id, "tools": [{"type": "file_search"}] }
-        #  {
-        # ],
+        "content": get_ad_checker_instructions(sponsors),
       }
     ],
         tool_resources={
@@ -181,7 +173,7 @@ def _create_thread(filename, path, lock):
 # First, we create a EventHandler class to define
 # how we want to handle the events in the response stream.
 
-import json
+# import json
 
 def obj_dict(obj):
     return obj.__dict__
@@ -227,7 +219,6 @@ class EventHandler():
 # and stream the response.
 
 def parse_message(message):
-    import re
     # sample message from llm
     # input_string = "Confidence Score[95]\n\nTimestamps:\n- 242.66 to 253.38\n- 269.06 to 273.48\n- 275.08 to 285.98\n- 289.36 to 294.35\n- 305.44 to 315.08"
 
@@ -262,14 +253,14 @@ def parse_message(message):
 
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
-def get_specific_timestamps_using_llm(filename, path, lock):
+def get_specific_timestamps_using_llm(filename, path, sponsors, lock):
     logger.info(f"##################################################################")
     logger.info(f"Entering get_specific_timestamps_using_llm")
-    logger.info(f"filename: {filename}, path: {path}")
+    logger.info(f"filename: {filename}, path: {path}, sponsors: {sponsors}")
     logger.info(f"##################################################################")
     with lock:
       logger.info(f"Lock Acquired for file: {filename} and path: {path}")
-      thread = _create_thread(filename=filename, path=path, lock=lock)
+      thread = _create_thread(filename=filename, path=path, sponsors=sponsors, lock=lock)
       #   thread_id = _assistant_call(filename=filename, path=path)
 
       run = client.beta.threads.runs.create(
@@ -320,3 +311,31 @@ def get_run_output(run, thread):
           logger.info(f"Run output: {retrieving_thread_run}")
           logger.info("No timestamps provided. Returning None.")
           return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
+
+
+def extract_sponsors(response_content):
+    match = re.search(r"Sponsors:\s*\[(.*?)\]", response_content)
+    if match:
+        sponsors = match.group(1).split(", ")
+        return [sponsor.strip() for sponsor in sponsors]
+    return []
+
+
+def fetch_sponsors(podcast_description):
+  logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
+  try:
+    response = openai.ChatCompletion.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": sponsor_instructions},
+            {"role": "user", "content": podcast_description}
+        ],
+        temperature=0
+    )
+    logger.info(f"Response: {response}")
+
+    # Extract and print the list from the response
+    return extract_sponsors(response['choices'][0]['message']['content'])
+  except Exception as e:
+      logger.error(f"Error fetching sponsors: {e}")
+      return []

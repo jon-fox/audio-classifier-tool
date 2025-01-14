@@ -32,13 +32,13 @@ SQS_URL = ssm.get_parameter(Name='/sqs/audio_processing/url')['Parameter']['Valu
 processing_message = False
 
 
-def prepare_mp3_file(podcast_name, episode_hash, audio_url, json_data={}):
+def prepare_mp3_file(podcast_name, podcast_description, episode_hash, audio_url, json_data={}):
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
     try:
         s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3" #HACK may shorten this later
         cdn_url = f"{CDN_BASE_URL}/{s3_path}"
-        processed_podcast_length = mp3_handler(podcast_name, cdn_url, episode_hash, audio_url)
+        processed_podcast_length = mp3_handler(podcast_name, podcast_description, cdn_url, episode_hash, audio_url)
         logger.info(f"MP3 file processed::{processed_podcast_length}")
         logger.info(f"Json data from Taddy API::{json_data}")
         logger.info(f"File uploaded to S3::{BUCKET_NAME}, " 
@@ -129,7 +129,18 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
         )
 
         logger.info(f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING")
-        processed_podcast_length, cdn_url = prepare_mp3_file(podcast_name=podcast_name, episode_hash=episode_hash, audio_url=audio_url)
+
+        try:
+            podcast_description = payload['data']['episodes'][0]['description']
+            logger.info(f"Podcast description fetched for processing::{podcast_description}")
+        except KeyError:
+            podcast_description = ""
+
+        processed_podcast_length, cdn_url = prepare_mp3_file(
+            podcast_name=podcast_name, 
+            podcast_description=podcast_description, 
+            episode_hash=episode_hash, 
+            audio_url=audio_url)
         logger.info(f"Processed podcast length::{processed_podcast_length}, CDN URL::{cdn_url}")
         if payload.get('add_to_rss_feed', False):
             logger.info(f"Adding episode to Rss feed::{episode_hash}, invoking rss feed update lambda")

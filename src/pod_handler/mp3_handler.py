@@ -32,7 +32,7 @@ def get_mp3_file(mp3_dir, filename):
     return mp3_file
 
 
-def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json_data={}):
+def mp3_handler(podcast_name, podcast_description, cdn_url, hashkey, audio_url, episode_data={}, json_data={}):
 
     # Load the MP3 file
     start_time = time.time()
@@ -42,7 +42,9 @@ def mp3_handler(podcast_name, cdn_url, hashkey, audio_url, episode_data={}, json
     saved_episode_name = f"{hashkey}.mp3"
     file_size, local_path = download_episode(saved_episode_name, audio_url, DOWNLOAD_DIR)
 
-    podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name))
+    podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(
+        audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name), 
+        podcast_description=podcast_description)
 
     logger.info(f"Episode {saved_episode_name} has been processed, ads removed, new duration: "
                 f"{podcast_length} vs original duration: {original_duration}")

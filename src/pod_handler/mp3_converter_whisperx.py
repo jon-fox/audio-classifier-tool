@@ -10,7 +10,7 @@ import traceback
 import argparse
 from queue import Queue
 from src.config.constants import *
-from src.ad_utils.ai_ad_checker import get_specific_timestamps_using_llm, get_run_output
+from src.ad_utils.ai_ad_checker import get_specific_timestamps_using_llm, get_run_output, fetch_sponsors
 from src.logger.logger_setup import logger
 import threading
 
@@ -19,8 +19,8 @@ import threading
 
 # buffers to try and capture ad time after keyword is mentioned
 # be careful with these, results in larger token cost to ai model
-START_AD_BUFFER = 30
-END_AD_BUFFER = 30
+START_AD_BUFFER = 45
+END_AD_BUFFER = 45
 
 MINIMUM_AD_SKIP_TIME = 15 # Minimum time to skip an ad segment
 
@@ -32,10 +32,21 @@ lock = threading.RLock()
 ad_keywords = ["signing up", "use the code", "support the show", "use code", "this episode is brought to you by","this show is brought to you by", 
                r"Support for \w+ comes from", r"I've been using \w+", "supplies are limited", r"and enter code \w+ at checkout",
                 "brought to you", "this episode is", "sponsors", "sponsor", "Click the link in the description to find out more",
-            "sponsored by", "advertisement", r'visit \w+\.com to save', "use the promo code", r'visit [\w.]+ to learn more' 
-            "sponsoring", "limited time", "subscription service that", "download the app",
-            r'get \d+% off your', r'save \d+% on your', r'\d+% discount on your', r'get \d+% off', "take a moment to thank our sponsor",
-            "signing up", "sponsors", "sponsor", "advertisement", "purchase", "sale", "sponsoring", "checkout"]
+                "sponsored by", "advertisement", r'visit \w+\.com to save', "use the promo code", r'visit [\w.]+ to learn more' 
+                "sponsoring", "limited time", "subscription service that", "download the app",
+                r'get \d+% off your', r'save \d+% on your', r'\d+% discount on your', r'get \d+% off', "take a moment to thank our sponsor",
+                "signing up", "sponsors", "sponsor", "advertisement", "purchase", "sale", "sponsoring", "checkout",
+                "special offer", "discount", "promo code", "promo", "code", "deal", "offer", "limited time", "subscription service that",
+                "exclusive offer", "exclusive deal", r"limited[-\s]?time deal", r"limited[-\s]?time offer", r"limited[-\s]?time deal", 
+                r"limited[-\s]?time discount", r"limited[-\s]?time sale",
+                "promo code", "highly recommend", "you have to try", "shop now", "exclusive deal",
+                "affiliate link", "commission earned", "as an affiliate", "partner program", "affiliate disclosure",
+                "brought to you in part by", "our friends at", "a quick word from our sponsors", r"listener[-\s]?supported",
+                "thanks to our sponsor", "subscribe today", "try it for free", "sign up now", "don't miss out", 
+                "order now", "learn more", "click here", "visit now", "explore more", "read more", "get your first month free",
+                "free trial", "no obligation", r"money[-\s]?back guarantee", "best price", "partnered with", "in collaboration with",
+                "powered by", "endorsed by", "brought to you by our partners", r"(visit|check\s(out|us\sat|our\swebsite)|go\sto)\s[\w-]+(\.[a-z]{2,})"
+                ]
 
 # compiled regex patterns for ad keywords
 ad_keywords_compiled = [re.compile(pattern, re.IGNORECASE) for pattern in ad_keywords]
@@ -52,9 +63,26 @@ logger.info(f'Current working directory: {cwd}')
 # file_path = os.path.join(cwd, ADS_TXT_PATH)
 # logger.info(f'Absolute file path: {file_path}')
 
-with open(ADS_TXT_PATH, 'r') as file:
-    ad_companies = {line.strip().lower() for line in file}
+# with open(ADS_TXT_PATH, 'r') as file:
+#     ad_companies = {line.strip().lower() for line in file}
 
+def update_ad_keywords_with_sponsors(podcast_description):
+    if podcast_description:
+        logger.info(f"Podcast description: {podcast_description}")
+        try:
+            sponsors = fetch_sponsors(podcast_description)
+            if isinstance(sponsors, list):
+                logger.info(f"Podcast sponsors: {sponsors}")
+                new_patterns = [re.compile(sponsor, re.IGNORECASE) for sponsor in sponsors]
+                ad_keywords_compiled.extend(new_patterns)
+                return sponsors
+            else:
+                logger.error("Fetched sponsors is not a list")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching or extending sponsors: {e}")
+            return []
+    return []
 
 # Find positions of ad-related keywords in the transcription
 def find_ad_timestamps(transcript):
@@ -229,7 +257,7 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment, total_segments):
+def process_audio_segment(index, audio_segment, total_segments, sponsors):
     try:
         # TODO lets try using openai's model api call here
         # model = whisper.load_model("tiny", device="cuda")
@@ -305,7 +333,7 @@ def process_audio_segment(index, audio_segment, total_segments):
         with lock:
             logger.info(f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}_logging.json")
             run, thread = get_specific_timestamps_using_llm(f"transcript_{index}_logging.json", 
-                                                                os.path.join(script_dir, f"transcript_{index}_logging.json"), lock)
+                                                                os.path.join(script_dir, f"transcript_{index}_logging.json"), sponsors, lock)
             logger.info(f"Put prompts into assistant thread openai thread {thread.id} and polling run {run.id}")
             min_ms, max_ms, confidence_score = get_run_output(run=run, thread=thread)
             logger.info(f"Thread {threading.get_ident()} has exited the openai api call for file transcript_{index}_logging.json")
@@ -342,7 +370,7 @@ def process_audio_segment(index, audio_segment, total_segments):
         return audio_before_ad + audio_after_ad
 
 
-def remove_ads_from_audio(audio_file):
+def remove_ads_from_audio(audio_file, podcast_description):
     """
     Removes ads from an audio file.
 
@@ -365,6 +393,9 @@ def remove_ads_from_audio(audio_file):
     # model = whisper.load_model("tiny", device="cpu")
     # model = whisper.load_model("tiny", device="cuda")
     # model = whisper.load_model("medium", device="cuda")
+
+    sponsors = update_ad_keywords_with_sponsors(podcast_description)
+
 
     audio = AudioSegment.from_mp3(audio_file)
     original_duration = len(audio) / 1000
