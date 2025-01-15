@@ -50,7 +50,7 @@ def get_ad_checker_instructions(sponsors=None):
     Generate ad checker instructions with an optional sponsors section.
     """
     # Handle sponsors dynamically
-    if sponsors:
+    if sponsors and not (len(sponsors) == 1 and sponsors[0] == ''):
         sponsors_list = ", ".join(sponsors)
         optional_sponsors_section = f"If one or more of these sponsor names are present, greatly increase the confidence " + \
             f"score that an ad is present: {sponsors_list}"
