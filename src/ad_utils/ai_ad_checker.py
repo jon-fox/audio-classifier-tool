@@ -81,9 +81,10 @@ Sponsors: [Company A, Company B]"""
 def get_ad_checker_instructions(sponsors):
     if sponsors:
         sponsors_list = ", ".join(sponsors)
-        optional_sponsors_section = f"If one of these sponsor names 
-        are present then greatly increase the confidence score 
-        that an ad is present: {sponsors_list}\n\n"
+        optional_sponsors_section = (
+            f"If one of these sponsor names are present then greatly increase the confidence "
+            f"score that an ad is present: {sponsors_list}\n\n"
+        )
     else:
         optional_sponsors_section = ""
     
