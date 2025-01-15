@@ -37,39 +37,6 @@ Your role is to analyze text or files for advertisements. Prioritize accuracy an
 When provided with specific scoring or timestamping instructions, follow them carefully.
 """
 
-
-ad_checker_thread_instructions_template = f"""On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
-Confidence Score: [Score]
-
-If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
-Timestamps: [Start] - [End]
-
-Guidelines for Detection:
-Mentions of Organizations: Advertisements often mention a sponsor, company, or organization multiple times. 
-This could include selling a service or subscription, promoting a business, enrolling in an institution, or highlighting a company's values or services.
-
-Calls to Action: Look for language encouraging the listener to take specific actions, such as visiting a website, using a promo code, enrolling in a program, or subscribing to a service.
-
-Distinctive Features: Ads may include a change in tone, pace, or style (e.g., jingles, slogans, or repetitive phrasing).
-
-Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting corporate social responsibility).
-
-Selling or Subscribing: Many advertisements aim to encourage the listener to purchase a product, enroll in a service, or subscribe to ongoing offerings (e.g., "Sign up at our website" or "Enroll today for a discount").
-
-Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions for podcast listeners. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
-
-{optional_sponsors_section}Scoring and Timestamping:
-Assign a higher confidence score if the text contains explicit mentions of an organization or sponsor, strong calls to action, or promotional language.
-If no sponsor or organization is explicitly mentioned, reduce the confidence score significantly (e.g., below 50).
-Typically, ads run for 30-60 seconds, though variations are possible. Use this as a guideline when determining timestamps.
-
-Output:
-Be concise, providing only the confidence score and the timestamps for each ad segment.
-
-Example Output:
-Confidence Score: [85]
-Timestamps: [0.00] - [30.00]"""
-
 sponsor_instructions = f"""Please review the following podcast 
 description and extract only the names of sponsors, advertisers, 
 companies, or organizations mentioned. Exclude any other details, links, or additional context. 
@@ -78,17 +45,55 @@ Provide just the names.
 Example Output:
 Sponsors: [Company A, Company B]"""
 
-def get_ad_checker_instructions(sponsors):
+def get_ad_checker_instructions(sponsors=None):
+    """
+    Generate ad checker instructions with an optional sponsors section.
+    """
+    # Handle sponsors dynamically
     if sponsors:
         sponsors_list = ", ".join(sponsors)
-        optional_sponsors_section = (
-            f"If one of these sponsor names are present then greatly increase the confidence "
-            f"score that an ad is present: {sponsors_list}\n\n"
-        )
+        optional_sponsors_section = f"If one or more of these sponsor names are present, greatly increase the confidence " + \
+            f"score that an ad is present: {sponsors_list}"
     else:
         optional_sponsors_section = ""
-    
-    return ad_checker_thread_instructions_template.format(optional_sponsors_section=optional_sponsors_section)
+
+    ad_checker_thread_instructions = f"""
+        On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
+        Confidence Score: [Score]
+
+        If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
+        Timestamps: [Start] - [End]
+
+        Guidelines for Detection:
+        Mentions of Organizations: Advertisements often mention a sponsor, company, or organization multiple times. 
+        This could include selling a service or subscription, promoting a business, enrolling in an institution, or highlighting a company's values or services.
+
+        Calls to Action: Look for language encouraging the listener to take specific actions, such as visiting a website, using a promo code, enrolling in a program, or subscribing to a service.
+
+        Distinctive Features: Ads may include a change in tone, pace, or style (e.g., jingles, slogans, or repetitive phrasing).
+
+        Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting corporate social responsibility).
+
+        Selling or Subscribing: Many advertisements aim to encourage the listener to purchase a product, enroll in a service, or subscribe to ongoing offerings (e.g., "Sign up at our website" or "Enroll today for a discount").
+
+        Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions for podcast listeners. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
+
+        {optional_sponsors_section}
+        
+        Scoring and Timestamping:
+        Assign a higher confidence score if the text contains explicit mentions of an organization or sponsor, strong calls to action, or promotional language.
+        If no sponsor or organization is explicitly mentioned, reduce the confidence score significantly (e.g., below 50).
+        Typically, ads run for 30-60 seconds, though variations are possible. Use this as a guideline when determining timestamps.
+
+        Output:
+        Be concise, providing only the confidence score and the timestamps for each ad segment.
+
+        Example Output:
+        Confidence Score: [85]
+        Timestamps: [0.00] - [30.00]
+    """
+
+    return ad_checker_thread_instructions
 
 
 def _create_assistant():
@@ -226,8 +231,9 @@ def parse_message(message):
     # Extract confidence score
     confidence_score = int(re.search(r'Confidence\s*Score[:\s]*\[?(\d+)\]?', message, re.IGNORECASE).group(1))
 
-    # Extract all numeric values from the timestamps, after word timestamps
-    numeric_values = [float(num) for num in re.findall(r'Timestamps:\s*\[\s*(\d+\.\d+)\s*\]\s*-\s*\[\s*(\d+\.\d+)\s*\]', message)]
+    # Extract all timestamps
+    timestamps = re.findall(r'\[\s*(\d+\.\d+)\s*\]', message)
+    numeric_values = [float(value) for value in timestamps]
 
     logger.info(f"Parsing message: {message}")
     logger.info(f"Parsed Timestamps: {numeric_values}")
@@ -325,7 +331,7 @@ def extract_sponsors(response_content):
 def fetch_sponsors(podcast_description):
   logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
   try:
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model=MODEL_NAME,
         messages=[
             {"role": "system", "content": sponsor_instructions},
@@ -336,7 +342,7 @@ def fetch_sponsors(podcast_description):
     logger.info(f"Response: {response}")
 
     # Extract and print the list from the response
-    return extract_sponsors(response['choices'][0]['message']['content'])
+    return extract_sponsors(response.choices[0].message.content.strip())
   except Exception as e:
       logger.error(f"Error fetching sponsors: {e}")
       return []

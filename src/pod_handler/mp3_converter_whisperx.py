@@ -73,8 +73,6 @@ def update_ad_keywords_with_sponsors(podcast_description):
             sponsors = fetch_sponsors(podcast_description)
             if isinstance(sponsors, list):
                 logger.info(f"Podcast sponsors: {sponsors}")
-                new_patterns = [re.compile(sponsor, re.IGNORECASE) for sponsor in sponsors]
-                ad_keywords_compiled.extend(new_patterns)
                 return sponsors
             else:
                 logger.error("Fetched sponsors is not a list")
@@ -85,7 +83,7 @@ def update_ad_keywords_with_sponsors(podcast_description):
     return []
 
 # Find positions of ad-related keywords in the transcription
-def find_ad_timestamps(transcript):
+def find_ad_timestamps(transcript, sponsors):
     """
     Find the timestamps of ad segments in a transcription.
 
@@ -127,7 +125,7 @@ def find_ad_timestamps(transcript):
 
         # high_certainty = any(company.lower() in text for company in ad_companies)
 
-        contains_ad = any(company in text for company in ad_companies) or \
+        contains_ad = any(company in text for company in sponsors) or \
                 any(pattern.search(text) for pattern in ad_keywords_compiled)
 
         if contains_ad:
@@ -285,7 +283,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
             logger.info(f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json")
             logger.info("Searching the last segment because it is likely to have ads")
         else:
-            min_ms, max_ms = find_ad_timestamps(result)
+            min_ms, max_ms = find_ad_timestamps(result, sponsors)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -424,7 +422,7 @@ def remove_ads_from_audio(audio_file, podcast_description):
     with concurrent.futures.ThreadPoolExecutor(max_workers=model_pool.qsize()) as executor:
         logger.info(f"Using {model_pool.qsize()} models for processing")
         # Submit all segments to the executor
-        future_to_segment = {executor.submit(process_audio_segment, i, segments[i], len(segments)): i for i in range(len(segments))}
+        future_to_segment = {executor.submit(process_audio_segment, i, segments[i], len(segments), sponsors): i for i in range(len(segments))}
         
         # Collect results as they complete
         results = []
@@ -452,6 +450,7 @@ def remove_ads_from_audio(audio_file, podcast_description):
     logger.info(f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds")
     return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
 
+podcast_description = """<p>Today we’ll hear about: </p><ul>\n<li>A young owner looking for help establishing processes in his fast- growing business </li>\n<li>A woman looking to fire an employee who won’t see it coming </li>\n<li>Dave Ramsey’s take on Home Depot requiring corporate employees to work in retail stores </li>\n<li>A business owner looking for advice on profit sharing with her team </li>\n</ul><p> </p><p><strong>Next Steps</strong> </p><ul>\n<li>📞 Have a question for the show? Call 844-944-1070 or send us a message: <a href=\"https://ter.li/ask-us\">https://ter.li/ask-us</a> </li>\n<li>📚 Learn about the EntreLeadership System: <a href=\"https://ter.li/system-p\">https://ter.li/system-p</a> </li>\n<li>💻 Get EntreLeadership Elite for your business: <a href=\"https://ter.li/elite-p\">https://ter.li/elite-p</a> </li>\n<li>✉️ Sign up to receive tactical tools, advice and resources in your inbox every week: <a href=\"https://ter.li/enl\">https://ter.li/enl</a> </li>\n<li>🏢 Attend EntreLeadership Summit: <a href=\"https://ter.li/summit\">https://ter.li/summit</a>  </li>\n<li>🎤 Attend EntreLeadership Master Series: <a href=\"https://ter.li/masterseries\">https://ter.li/masterseries</a>  </li>\n</ul><p> </p><p><strong>Offers From Today's Sponsors</strong> </p><ul>\n<li>💼 Go to<a href=\"https://www.belaysolutions.com/Entreleadership\"> <strong>Belay Solutions</strong></a> or text ENTRE to 55123 for their free resource! </li>\n<li>💻 Visit<a href=\"https://www.netsuite.com/Ramsey\"> <strong>NetSuite</strong></a> today to learn more </li>\n<li>🧾 Visit<a href=\"https://www.payority.com/entreleadership\"> </a><a href=\"https://www.payority.com/entreleadership\"><strong>Payority</strong></a> for a free consultation! </li>\n<li>📝 Use code entre15 to get 15% off your first year of <a href=\"https://www.trainual.com/entre\"><strong>Trainual</strong></a> </li>\n</ul><p> </p><p><strong>Listen to More From Ramsey Network</strong> </p><p>🎙️ <a href=\"https://ter.li/gpny1a\">The Ramsey Show</a> </p><p>💸 <a href=\"https://ter.li/430qk2\">The Ramsey Show Highlights</a> </p><p><strong>🧠</strong> <a href=\"https://ter.li/w9syza\">The Dr. John Delony Show</a> </p><p>🍸 <a href=\"https://ter.li/k3waa1\">Smart Money Happy Hour</a> </p><p>💡 <a href=\"https://ter.li/j3ahu7\">The Rachel Cruze Show</a> </p><p>💰 <a href=\"https://ter.li/99j2kb\">George Kamel</a> </p><p>💼 <a href=\"https://ter.li/puh2qh\">The Ken Coleman Show</a> </p><p> </p><p><a href=\"https://www.megaphone.fm/adchoices\">Learn More About Your Ad Choices</a>  </p><p><a href=\"https://www.ramseysolutions.com/company/policies/privacy-policy\">Ramsey Solutions Privacy Policy</a> </p>"""
 
 # if __name__ == "__main__":
-#     remove_ads_from_audio("downloads/potp1201art19.mp3")
+#     remove_ads_from_audio("downloads/potp1201art19.mp3", podcast_description)
