@@ -52,8 +52,8 @@ def get_ad_checker_instructions(sponsors=None):
     # Handle sponsors dynamically
     if sponsors and not (len(sponsors) == 1 and sponsors[0] == ''):
         sponsors_list = ", ".join(sponsors)
-        optional_sponsors_section = f"If one or more of these sponsor names are present, greatly increase the confidence " + \
-            f"score that an ad is present: {sponsors_list}"
+        optional_sponsors_section = f"If one or more of these sponsor names are present, increase the confidence " + \
+            f"score that an ad is present greatly: {sponsors_list}"
     else:
         optional_sponsors_section = ""
 
@@ -64,19 +64,32 @@ def get_ad_checker_instructions(sponsors=None):
         If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
         Timestamps: [Start] - [End]
 
-        Guidelines for Detection:
-        Mentions of Organizations: Advertisements often mention a sponsor, company, or organization multiple times. 
-        This could include selling a service or subscription, promoting a business, enrolling in an institution, or highlighting a company's values or services.
+        ### Guidelines for Detection:
 
-        Calls to Action: Look for language encouraging the listener to take specific actions, such as visiting a website, using a promo code, enrolling in a program, or subscribing to a service.
+        #### General Indicators:
+        - Mentions of Organizations or Sponsors: Advertisements often mention a sponsor, company, or an organization.
+        - Selling or promoting a service, product, organization, institution, or subscription.
+        - Highlighting benefits, features, or special deals tied to a specific name.
+        - Encouraging listeners to trust or engage with a brand.
 
-        Distinctive Features: Ads may include a change in tone, pace, or style (e.g., jingles, slogans, or repetitive phrasing).
+        #### Calls to Action:
+        - Look for language prompting specific actions, such as:
+          - Visiting a website or entering a URL (e.g., "Go to our website to learn more").
+          - Using a promo code or availing a discount (e.g., "Use code PODCAST for 20% off").
+          - Signing up, selling, downloading, ordering, shopping, subscribing, or enrolling.
 
-        Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting corporate social responsibility).
+        #### Distinctive Features:
+        - Advertisements may include:
+          - A polished or structured delivery style (e.g., scripted or rehearsed tone).
+          - Repeated emphasis on a benefit or feature (e.g., "the best option for").
+          - Change in tone, speed, or use of distinct phrasing like slogans or taglines.
 
-        Selling or Subscribing: Many advertisements aim to encourage the listener to purchase a product, enroll in a service, or subscribe to ongoing offerings (e.g., "Sign up at our website" or "Enroll today for a discount").
-
-        Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions for podcast listeners. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
+        #### Common Promotional Elements:
+        - Mentions of deals, discounts, or limited-time offers (e.g., "Save now" or "Exclusive to listeners").
+        - References to enhancing a listener's life or solving a problem.
+        - Instructions to take immediate action (e.g., "Don't wait, act now").
+        - Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
+        - Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting a school).
 
         {optional_sponsors_section}
         

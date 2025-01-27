@@ -33,19 +33,27 @@ ad_keywords = ["signing up", "use the code", "support the show", "use code", "th
                r"Support for \w+ comes from", r"I've been using \w+", "supplies are limited", r"and enter code \w+ at checkout",
                 "brought to you", "this episode is", "sponsors", "sponsor", "Click the link in the description to find out more",
                 "sponsored by", "advertisement", r'visit \w+\.com to save', "use the promo code", r'visit [\w.]+ to learn more' 
-                "sponsoring", "limited time", "subscription service that", "download the app",
+                "sponsoring", "limited time", "subscription service that", "download the app", "paid for by"
                 r'get \d+% off your', r'save \d+% on your', r'\d+% discount on your', r'get \d+% off', "take a moment to thank our sponsor",
                 "signing up", "sponsors", "sponsor", "advertisement", "purchase", "sale", "sponsoring", "checkout",
                 "special offer", "discount", "promo code", "promo", "code", "deal", "offer", "limited time", "subscription service that",
                 "exclusive offer", "exclusive deal", r"limited[-\s]?time deal", r"limited[-\s]?time offer", r"limited[-\s]?time deal", 
-                r"limited[-\s]?time discount", r"limited[-\s]?time sale",
-                "promo code", "highly recommend", "you have to try", "shop now", "exclusive deal",
+                r"limited[-\s]?time discount", r"limited[-\s]?time sale", "partnering", "partner", "partnered", "partnered with",
+                "promo code", "promotion", "link in the episode description", "highly recommend", "you have to try", "shop", "shop now", "exclusive deal",
                 "affiliate link", "commission earned", "as an affiliate", "partner program", "affiliate disclosure",
                 "brought to you in part by", "our friends at", "a quick word from our sponsors", r"listener[-\s]?supported",
                 "thanks to our sponsor", "subscribe today", "try it for free", "sign up now", "don't miss out", 
                 "order now", "learn more", "click here", "visit now", "explore more", "read more", "get your first month free",
                 "free trial", "no obligation", r"money[-\s]?back guarantee", "best price", "partnered with", "in collaboration with",
-                "powered by", "endorsed by", "brought to you by our partners", r"(visit|check\s(out|us\sat|our\swebsite)|go\sto)\s[\w-]+(\.[a-z]{2,})"
+                "powered by", "endorsed by", "brought to you by our partners", r"(visit|check\s(out|us\sat|our\swebsite)|go\sto)\s[\w-]+(\.[a-z]{2,})",
+                "act now", "offer valid until", "use our code", "check the link below", "click to learn more",
+                "brought to you in partnership with", "save big", "big savings", "limited stock", "early bird offer",
+                "new customers only", "join now", "exclusive for listeners", "refer a friend", "referral bonus",
+                "sign up for exclusive perks", "try it today", "as seen on", "number one choice", "voted best by",
+                "receive your", "guaranteed results", "award winning", "customer favorite", "see why everyone loves",
+                "start your journey", "get access now", "unbeatable value", "get started today", "your exclusive chance",
+                "contact us for more", "fast delivery", "don't delay", "best in class", "industry leading",
+                "on sale now", "your satisfaction guaranteed"
                 ]
 
 # compiled regex patterns for ad keywords
