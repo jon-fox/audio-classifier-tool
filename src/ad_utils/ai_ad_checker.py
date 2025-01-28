@@ -66,37 +66,46 @@ def get_ad_checker_instructions(sponsors=None):
 
         ### Guidelines for Detection:
 
+        #### Handling Fragmented Content:
+        - Evaluate individual text segments. For segments that appear incomplete or ambiguous, include the preceding and following segments within a **10-20 second window** to ensure the full ad is captured.
+        - Prioritize removing content if:
+          - It contains explicit ad indicators, such as mentions of sponsors, products, or services.
+          - It includes calls to action, promotional language, or website/promo code references.
+        - It is acceptable to capture some non-adjacent content as long as it ensures the entire ad is removed.
+        - Avoid including unrelated segments that clearly lack ad indicators or disrupt the flow of detection.
+        - Use the larger window only for content likely to span multiple segments (e.g., longer ad reads or storytelling formats).
+
         #### General Indicators:
-        - Mentions of Organizations or Sponsors: Advertisements often mention a sponsor, company, or an organization.
-        - Selling or promoting a service, product, organization, institution, or subscription.
-        - Highlighting benefits, features, or special deals tied to a specific name.
+        - Mentions of organizations, sponsors, or products, explicitly or indirectly.
+        - Promotion of a service, product, subscription, or institution.
+        - Highlighting unique benefits, features, or incentives, such as cost savings or exclusivity.
         - Encouraging listeners to trust or engage with a brand.
+        - Contextual framing: Introducing a problem or need before recommending a solution.
 
         #### Calls to Action:
-        - Look for language prompting specific actions, such as:
-          - Visiting a website or entering a URL (e.g., "Go to our website to learn more").
-          - Using a promo code or availing a discount (e.g., "Use code PODCAST for 20% off").
-          - Signing up, selling, downloading, ordering, shopping, subscribing, or enrolling.
+        - Language prompting actions like:
+          - Visiting a website or using a promo code (e.g., "Use code PODCAST for 20% off").
+          - Signing up, downloading, subscribing, or purchasing.
 
         #### Distinctive Features:
-        - Advertisements may include:
-          - A polished or structured delivery style (e.g., scripted or rehearsed tone).
-          - Repeated emphasis on a benefit or feature (e.g., "the best option for").
-          - Change in tone, speed, or use of distinct phrasing like slogans or taglines.
+        - Polished delivery styles (e.g., rehearsed tone, slogans, or taglines).
+        - Emphasis on specific benefits or features.
+        - Changes in tone, speed, or phrasing signaling promotional content.
+        - Problem-solution narratives leading to product recommendations.
 
         #### Common Promotional Elements:
-        - Mentions of deals, discounts, or limited-time offers (e.g., "Save now" or "Exclusive to listeners").
-        - References to enhancing a listener's life or solving a problem.
-        - Instructions to take immediate action (e.g., "Don't wait, act now").
-        - Discounts and Promotions: Advertisements often offer special deals, discounts, or exclusive promotions. These may include phrases like "use code PODCAST for 10% off" or "limited-time offer available now."
-        - Business Promotion: Consider messages that aim to improve the reputation of a company or organization, even if they don't explicitly sell a product (e.g., promoting a school).
+        - Mentions of discounts, limited-time offers, or urgency (e.g., "Save now," "Exclusive to listeners").
+        - Encouragement to act immediately (e.g., "Don't wait, act now").
+        - References to solving a problem or enhancing a listener's experience.
 
         {optional_sponsors_section}
         
-        Scoring and Timestamping:
-        Assign a higher confidence score if the text contains explicit mentions of an organization or sponsor, strong calls to action, or promotional language.
-        If no sponsor or organization is explicitly mentioned, reduce the confidence score significantly (e.g., below 50).
-        Typically, ads run for 30-60 seconds, though variations are possible. Use this as a guideline when determining timestamps.
+        ### Scoring and Timestamping:
+        - Assign confidence scores as follows:
+          - Above 70: Strong ad indicators (e.g., sponsor mentions, calls to action, promo codes).
+          - 50-70: Ambiguous or mixed content with some ad-like features.
+          - Below 50: No clear ad indicators.
+        - Typically, ads run for 30-60 seconds. Use this as a guideline when determining timestamps.
 
         Output:
         Be concise, providing only the confidence score and the timestamps for each ad segment.
