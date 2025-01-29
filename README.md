@@ -7,6 +7,12 @@ export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt_App"
 
 export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
 
+or 
+
+export BASE_PATH=.
+
+set OPENAI_API_KEY=npp
+
 # PYAUDIO
 need to set ld lib path that includes already installed python-audio dependencies
 so this venv can use it
