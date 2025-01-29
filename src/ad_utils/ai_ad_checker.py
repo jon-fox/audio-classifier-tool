@@ -122,14 +122,14 @@ def get_ad_checker_instructions(sponsors=None):
         Be concise, providing only the confidence score and the timestamps for each detected ad or promotional segment.
 
         Example Output in JSON format:
-        {
+        {{
           "confidence_score": 85,
           "timestamps": [
-            {"start": 0.00, "end": 30.00},
-            {"start": 45.00, "end": 75.00},
-            {"start": 120.00, "end": 150.00}
+            {{"start": 0.00, "end": 30.00}},
+            {{"start": 45.00, "end": 75.00}},
+            {{"start": 120.00, "end": 150.00}}
           ]
-        }
+        }}
     """
 
     return ad_checker_thread_instructions
