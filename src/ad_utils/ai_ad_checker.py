@@ -10,6 +10,7 @@ import time
 import backoff
 from src.logger.logger_setup import logger
 import boto3
+import json
 # import os
 
 try:
@@ -58,11 +59,7 @@ def get_ad_checker_instructions(sponsors=None):
         optional_sponsors_section = ""
 
     ad_checker_thread_instructions = f"""
-        On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement. Provide the confidence score in the format:
-        Confidence Score: [Score]
-
-        If your confidence is greater than {CONFIDENCE_SCORE}, include the timestamps for the start and end of each ad segment. Format the timestamps as:
-        Timestamps: [Start] - [End]
+        On a scale of 1-100, evaluate the confidence that the attached text contains an advertisement or institutional promotion.
 
         ### Guidelines for Detection:
 
@@ -82,10 +79,22 @@ def get_ad_checker_instructions(sponsors=None):
         - Encouraging listeners to trust or engage with a brand.
         - Contextual framing: Introducing a problem or need before recommending a solution.
 
+        #### Institutional Promotions:
+        - Promotion of an organization's **reputation, values, or societal contributions** rather than a specific product or service.
+        - Examples include:
+          - A corporation highlighting its environmental efforts (e.g., "BP is committed to sustainability and a greener future").
+          - A university promoting its brand or academic excellence (e.g., "Georgia Tech is a leader in innovation and research").
+          - Government agencies, NGOs, or advocacy groups promoting awareness or community engagement (e.g., "Support our mission to fight climate change").
+        - Indicators of institutional promotions:
+          - Statements reinforcing credibility, leadership, or legacy (e.g., "A trusted name for over 100 years").
+          - Public relations-driven messaging emphasizing goodwill or societal impact.
+          - Invitations to explore the organization's work rather than purchase a product (e.g., "Learn more about our mission").
+
         #### Calls to Action:
         - Language prompting actions like:
           - Visiting a website or using a promo code (e.g., "Use code PODCAST for 20% off").
           - Signing up, downloading, subscribing, or purchasing.
+          - Exploring or engaging with a mission, values, or achievements (e.g., "Explore our impact.").
 
         #### Distinctive Features:
         - Polished delivery styles (e.g., rehearsed tone, slogans, or taglines).
@@ -102,17 +111,25 @@ def get_ad_checker_instructions(sponsors=None):
         
         ### Scoring and Timestamping:
         - Assign confidence scores as follows:
-          - Above 70: Strong ad indicators (e.g., sponsor mentions, calls to action, promo codes).
-          - 50-70: Ambiguous or mixed content with some ad-like features.
-          - Below 50: No clear ad indicators.
-        - Typically, ads run for 30-60 seconds. Use this as a guideline when determining timestamps.
+          - Above 60: Strong ad indicators (e.g., sponsor mentions, calls to action, promo codes).
+          - 40-60: Content in the 40-60 range may include partial ad-like phrases but lacks a clear call to action or sponsorship mention.
+          - Below 40: No clear ad indicators.
+        - Ads often run for 30-60 seconds, but timestamps should match detected promotional content rather than assume a set length.
+        - If multiple ad or promotional segments are detected, provide timestamps for each segment individually. However, if an ad is fragmented across a longer conversational segment, merge timestamps where necessary to capture the full promotional message without splitting it unnaturally.
+        - For conversational-style ads that blend with organic content, focus on identifying the entire promotional context rather than isolating individual phrases. Ensure that subtle sponsorship mentions or integrated endorsements are fully captured.
 
         Output:
-        Be concise, providing only the confidence score and the timestamps for each ad segment.
+        Be concise, providing only the confidence score and the timestamps for each detected ad or promotional segment.
 
-        Example Output:
-        Confidence Score: [85]
-        Timestamps: [0.00] - [30.00]
+        Example Output in JSON format:
+        {
+          "confidence_score": 85,
+          "timestamps": [
+            {"start": 0.00, "end": 30.00},
+            {"start": 45.00, "end": 75.00},
+            {"start": 120.00, "end": 150.00}
+          ]
+        }
     """
 
     return ad_checker_thread_instructions
@@ -247,38 +264,60 @@ class EventHandler():
 # and stream the response.
 
 def parse_message(message):
-    # sample message from llm
-    # input_string = "Confidence Score[95]\n\nTimestamps:\n- 242.66 to 253.38\n- 269.06 to 273.48\n- 275.08 to 285.98\n- 289.36 to 294.35\n- 305.44 to 315.08"
-
-    # Extract confidence score
-    confidence_score = int(re.search(r'Confidence\s*Score[:\s]*\[?(\d+)\]?', message, re.IGNORECASE).group(1))
-
-    # Extract all timestamps
-    timestamps = re.findall(r'\[\s*(\d+\.\d+)\s*\]', message)
-    numeric_values = [float(value) for value in timestamps]
-
-    logger.info(f"Parsing message: {message}")
-    logger.info(f"Parsed Timestamps: {numeric_values}")
-
-    # Find the minimum and maximum values
     try:
-        min_timestamp = min(numeric_values)
-        max_timestamp = max(numeric_values)
-    except Exception:
-        logger.error("No timestamps provided. Returning None.")
+        # Attempt to parse the JSON message
+        data = json.loads(message)
+    except json.JSONDecodeError:
+        # If JSON parsing fails, use regex to extract JSON data
+        json_match = re.search(r'\{.*\}', message)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                logger.error("Invalid JSON format after extraction. Returning default values.")
+                return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
+        else:
+            logger.error("No JSON data found in message. Returning default values.")
+            return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
+    
+    # Extract confidence score
+    confidence_score = data.get("confidence_score", 0)
+    
+    # Extract all timestamps
+    timestamps = data.get("timestamps", [])
+    
+    all_min_timestamps = []
+    all_max_timestamps = []
+
+    for timestamp in timestamps:
+        start = timestamp.get("start", 0)
+        end = timestamp.get("end", 0)
+        
+        logger.info(f"Parsing message: {message}")
+        logger.info(f"Parsed Timestamps: start={start}, end={end}")
+
+        # Append the start and end times to the lists
+        all_min_timestamps.append(start)
+        all_max_timestamps.append(end)
+
+    # Handle case where there are no timestamps
+    if not all_min_timestamps or not all_max_timestamps:
+        logger.error("No timestamps provided. Returning default values.")
         return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
-    if confidence_score > 80 and (15 < (max_timestamp - min_timestamp)):
-        logger.info(f"Confidence Score: {confidence_score}, Timestamps: {min_timestamp} to {max_timestamp}")
+
+    overall_min_timestamp = min(all_min_timestamps)
+    overall_max_timestamp = max(all_max_timestamps)
+
+    if confidence_score > 80 and (15 < (overall_max_timestamp - overall_min_timestamp)):
+        logger.info(f"Confidence Score: {confidence_score}, Timestamps: {overall_min_timestamp} to {overall_max_timestamp}")
         logger.info(f"Ad likely present at end of audio segment, passing for skip")
-    elif confidence_score < CONFIDENCE_SCORE or (20 > (max_timestamp - min_timestamp)):
+    elif confidence_score < CONFIDENCE_SCORE or (20 > (overall_max_timestamp - overall_min_timestamp)):
         logger.info(f"""Confidence score is less than {CONFIDENCE_SCORE} or ad is less than 20 seconds with low ad confidence 
               Confidence Score: {confidence_score}""".replace("\n", "  "))
-        logger.info(f"confidence_score: {confidence_score}, min_timestamp: {min_timestamp}, max_timestamp: {max_timestamp}")
+        logger.info(f"confidence_score: {confidence_score}, min_timestamp: {overall_min_timestamp}, max_timestamp: {overall_max_timestamp}")
         return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
 
-    # logger.info the parsed data
-    logger.info(f"Confidence Score: {confidence_score}, Timestamps: {min_timestamp} to {max_timestamp}")
-    return [min_timestamp, max_timestamp, confidence_score]
+    return [overall_min_timestamp, overall_max_timestamp, confidence_score]
 
 
 @backoff.on_exception(backoff.expo, openai.RateLimitError)
