@@ -121,7 +121,7 @@ def get_ad_checker_instructions(sponsors=None):
         Output:
         Be concise, providing only the confidence score and the timestamps for each detected ad or promotional segment.
 
-        Example Output in JSON format:
+        Return only a valid JSON object with no additional text, explanations, or formatting. The response must strictly follow this format:
         {{
           "confidence_score": 85,
           "timestamps": [
@@ -264,11 +264,24 @@ class EventHandler():
 # and stream the response.
 
 def parse_message(message):
+    if "```" in message:
+        logger.info("Removing code block from message")
+        # Extract the JSON content between the code block markers
+        json_match = re.search(r'```json\s*(\{.*\})\s*```', message, re.DOTALL)
+        if json_match:
+            message = json_match.group(1)
+        else:
+            logger.error("No JSON data found in message. Returning default values.")
+            return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
+
     try:
+        logger.info("Parsing message...")
         # Attempt to parse the JSON message
         data = json.loads(message)
+        logger.info(f"Parsed JSON data: {data}")
     except json.JSONDecodeError:
         # If JSON parsing fails, use regex to extract JSON data
+        logger.error("JSON parsing failed. Attempting to extract JSON data using regex.")
         json_match = re.search(r'\{.*\}', message)
         if json_match:
             try:
@@ -279,20 +292,20 @@ def parse_message(message):
         else:
             logger.error("No JSON data found in message. Returning default values.")
             return [float('inf'), float('-inf'), 0] # set min to inf and max to -inf
-    
+
     # Extract confidence score
     confidence_score = data.get("confidence_score", 0)
-    
+
     # Extract all timestamps
     timestamps = data.get("timestamps", [])
-    
+
     all_min_timestamps = []
     all_max_timestamps = []
 
     for timestamp in timestamps:
         start = timestamp.get("start", 0)
         end = timestamp.get("end", 0)
-        
+
         logger.info(f"Parsing message: {message}")
         logger.info(f"Parsed Timestamps: start={start}, end={end}")
 
