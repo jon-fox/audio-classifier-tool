@@ -7,6 +7,7 @@ import boto3
 import sys
 from datetime import datetime
 import requests
+from src.metadata.utils import is_terminating, get_instance_id
 
 
 # uvicorn app:app --reload
@@ -75,18 +76,6 @@ def invoke_rssfeed_update_lambda(sanitized_podcast_name, episode_length, hashkey
     logger.info(f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}")
     logger.info(f"Response from RSS Feed Update Lambda: {response}")
     return response
-    
-
-def get_instance_id():
-    try:
-        # Use the EC2 metadata service to get the instance ID
-        response = requests.get('http://169.254.169.254/latest/meta-data/instance-id')
-        response.raise_for_status()
-        instance_id = response.text
-        return instance_id
-    except requests.RequestException as e:
-        logger.error(f"Error retrieving instance ID: {e}")
-        return None
 
 
 def process_payload(payload={}, receipt_handle=None, message_id=None):
@@ -211,7 +200,7 @@ def main():
         logger.error("SQS_QUEUE_URL not found in parameter store /sqs/audio_processing/url")
         sys.exit(1)
 
-    while True:
+    while not is_terminating():
         poll_sqs()
 
 
