@@ -2,7 +2,7 @@ import requests
 import boto3
 from src.logger.logger_setup import logger
 
-client = boto3.client('autoscaling')
+client = boto3.client('autoscaling', 'us-east-1')
 
 def get_instance_id():
     try:
