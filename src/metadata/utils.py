@@ -2,7 +2,8 @@ import requests
 import boto3
 from src.logger.logger_setup import logger
 
-client = boto3.client('autoscaling', 'us-east-1')
+client = boto3.client("autoscaling", "us-east-1")
+
 
 def get_instance_id():
     try:
@@ -28,6 +29,7 @@ def get_instance_id():
         logger.error(f"Error retrieving instance ID: {e}")
         return None
 
+
 def is_terminating():
     logger.info("Checking if the instance is terminating.")
     instance_id = get_instance_id()
@@ -38,14 +40,14 @@ def is_terminating():
     logger.info("Retrieving Auto Scaling instances.")
     # Retrieve all Auto Scaling instances
     response = client.describe_auto_scaling_instances()
-    instances = response.get('AutoScalingInstances', [])
+    instances = response.get("AutoScalingInstances", [])
 
     # Filter for the current instance
     for instance in instances:
-        if instance.get('InstanceId') == instance_id:
-            state = instance.get('LifecycleState', '')
+        if instance.get("InstanceId") == instance_id:
+            state = instance.get("LifecycleState", "")
             logger.info(f"Found matching instance with state: {state}")
-            is_term = state.startswith('Terminating')
+            is_term = state.startswith("Terminating")
             if is_term:
                 logger.info("Instance is in a terminating state.")
             else:

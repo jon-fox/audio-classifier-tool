@@ -12,24 +12,26 @@ def upload_file_to_s3(bucket_name, s3_key, local_path):
     :param s3_key: S3 key where the file will be saved
     """
     try:
-        s3 = boto3.client('s3')
+        s3 = boto3.client("s3")
     except Exception as e:
         logger.error(f"Error getting S3 client: {e}")
         raise e
 
-    if local_path.lower().endswith('.mp3'):
-        content_type = 'audio/mpeg'
-    elif local_path.lower().endswith('.json'):
-        content_type = 'application/json'
+    if local_path.lower().endswith(".mp3"):
+        content_type = "audio/mpeg"
+    elif local_path.lower().endswith(".json"):
+        content_type = "application/json"
     else:
         content_type, _ = mimetypes.guess_type(local_path)
         if content_type is None:
-            content_type = 'application/octet-stream'  # Default content type if unknown
+            content_type = "application/octet-stream"  # Default content type if unknown
 
-    extra_args = {'ContentType': content_type}
+    extra_args = {"ContentType": content_type}
 
     try:
-        logger.info(f"Uploading file to S3, bucket_name::{bucket_name}, local_path::{local_path}, s3_key::{s3_key}")
+        logger.info(
+            f"Uploading file to S3, bucket_name::{bucket_name}, local_path::{local_path}, s3_key::{s3_key}"
+        )
         s3.upload_file(local_path, bucket_name, s3_key, ExtraArgs=extra_args)
         logger.info("Upload successful")
     except Exception as e:

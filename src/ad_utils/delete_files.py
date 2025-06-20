@@ -1,16 +1,20 @@
 from openai import OpenAI
 import datetime
 import boto3
+
 # from src.logger.logger_setup import logger
 
 try:
-    ssm = boto3.client('ssm', region_name='us-east-1')
-    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)['Parameter']['Value']
+    ssm = boto3.client("ssm", region_name="us-east-1")
+    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)[
+        "Parameter"
+    ]["Value"]
 except Exception as e:
     print(f"Error getting SSM parameters: {e}")
     raise e
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+
 
 def upload_file():
     filename = input("Enter the filename to upload: ")
@@ -22,14 +26,18 @@ def upload_file():
     except FileNotFoundError:
         print("File not found. Please make sure the filename and path are correct.")
 
+
 def list_files():
     response = client.files.list(purpose="assistants")
     if len(response.data) == 0:
         print("No files found.")
         return
     for file in response.data:
-        created_date = datetime.datetime.utcfromtimestamp(file.created_at).strftime('%Y-%m-%d')
+        created_date = datetime.datetime.utcfromtimestamp(file.created_at).strftime(
+            "%Y-%m-%d"
+        )
         print(f"{file.filename} [{file.id}], Created: {created_date}")
+
 
 def list_and_delete_file():
     while True:
@@ -39,17 +47,24 @@ def list_and_delete_file():
             print("No files found.")
             return
         for i, file in enumerate(files, start=1):
-            created_date = datetime.datetime.utcfromtimestamp(file.created_at).strftime('%Y-%m-%d')
+            created_date = datetime.datetime.utcfromtimestamp(file.created_at).strftime(
+                "%Y-%m-%d"
+            )
             print(f"[{i}] {file.filename} [{file.id}], Created: {created_date}")
-        choice = input("Enter a file number to delete, or any other input to return to menu: ")
+        choice = input(
+            "Enter a file number to delete, or any other input to return to menu: "
+        )
         if not choice.isdigit() or int(choice) < 1 or int(choice) > len(files):
             return
         selected_file = files[int(choice) - 1]
         client.files.delete(selected_file.id)
         print(f"File deleted: {selected_file.filename}")
 
+
 def delete_all_files():
-    confirmation = input("This will delete all OpenAI files with purpose 'assistants'.\n Type 'YES' to confirm: ")
+    confirmation = input(
+        "This will delete all OpenAI files with purpose 'assistants'.\n Type 'YES' to confirm: "
+    )
     if confirmation == "YES":
         response = client.files.list(purpose="assistants")
         for file in response.data:
@@ -58,8 +73,11 @@ def delete_all_files():
     else:
         print("Operation cancelled.")
 
+
 def delete_all_assistants():
-    confirmation = input("This will delete all OpenAI files with purpose 'assistants'.\n Type 'YES' to confirm: ")
+    confirmation = input(
+        "This will delete all OpenAI files with purpose 'assistants'.\n Type 'YES' to confirm: "
+    )
     if confirmation == "YES":
         response = client.beta.assistants.list()
         # print(response)
@@ -69,6 +87,7 @@ def delete_all_assistants():
         print("All assistants have been deleted.")
     else:
         print("Operation cancelled.")
+
 
 def main():
     while True:
@@ -95,6 +114,7 @@ def main():
             break
         else:
             print("Invalid choice. Please try again.")
+
 
 if __name__ == "__main__":
     main()

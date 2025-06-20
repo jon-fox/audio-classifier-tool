@@ -10,11 +10,12 @@ options.headless = True
 
 # Create a new instance of the Firefox driver with the headless option
 
+
 def get_popular_ads():
     driver = webdriver.Firefox(options=options)
-# Go to the webpage
+    # Go to the webpage
     try:
-        driver.get('https://www.podchaser.com/brands')
+        driver.get("https://www.podchaser.com/brands")
     except Exception as e:
         logger.error(f"Failed to load webpage: {e}")
         driver.quit()
@@ -24,8 +25,10 @@ def get_popular_ads():
     html = driver.page_source
 
     # Parse the HTML content with BeautifulSoup
-    soup = BeautifulSoup(html, 'html.parser')
-    buttons = soup.find_all('button', {'class': '_14bpxty', 'data-testid': 'listItemButton'})
+    soup = BeautifulSoup(html, "html.parser")
+    buttons = soup.find_all(
+        "button", {"class": "_14bpxty", "data-testid": "listItemButton"}
+    )
 
     if not buttons:
         logger.info("No ads found")
@@ -33,11 +36,11 @@ def get_popular_ads():
         exit(0)
 
     # Now you can use `soup` to navigate and search the HTML document
-    with open('popular_ads.txt', 'a') as file:
+    with open("popular_ads.txt", "a") as file:
         for button in buttons:
             try:
-                company = button.find('p', {'class':'_c7p45a'}).text
-                file.write(company + '\n')
+                company = button.find("p", {"class": "_c7p45a"}).text
+                file.write(company + "\n")
             except AttributeError:
                 logger.error("Failed to find company name")
 
@@ -45,5 +48,5 @@ def get_popular_ads():
     driver.quit()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     get_popular_ads()
