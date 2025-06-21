@@ -6,7 +6,6 @@ import src.db_utils.write_to_db as write_to_db
 import boto3
 import sys
 from datetime import datetime
-import requests
 from src.metadata.utils import is_terminating, get_instance_id
 
 
@@ -128,10 +127,10 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
             status="PROCESSING",
             message_id=message_id,
             processing_node=instance_id,
-            result_data=json.dumps(payload),
+            result_data=payload,
             completed_timestamp=datetime.now(),
             aws_request_id=receipt_handle,
-            is_archived="N",
+            is_archived=False,
         )
 
         logger.info(

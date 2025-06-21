@@ -1,9 +1,11 @@
-from psycopg2 import sql
-from src.db_utils.db_get_conn import get_db_connection
+import boto3
 from src.logger.logger_setup import logger
 import hashlib
 from datetime import datetime
 import json
+
+dynamodb = boto3.resource("dynamodb", "us-east-1")
+METADATA_TABLE = dynamodb.Table("PodcastS3Metadata")
 
 
 def generate_hash(podcast_name, episode_name):
@@ -37,74 +39,46 @@ def sanitize_name(name):
 
 def insert_podcast_metadata(**kwargs):
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                # Define the insert query
-                insert_query = sql.SQL(
-                    """
-                    INSERT INTO podcast_metadata.s3_metadata (
-                        id, podcast_name, episode_uuid, episode_name, episode_guid, episode_hash_name, episode_url, 
-                        cdn_url, image_url, api_data, api_episode_hash, local_filename, s3_location,
-                        original_duration, podcast_length_seconds, ad_time_removed, total_processing_time, 
-                        file_size, mime_type, upload_dt
-                    ) VALUES (
-                        %(id)s, %(podcast_name)s, %(episode_uuid)s, %(episode_name)s, %(episode_guid)s, %(episode_hash_name)s, %(episode_url)s, 
-                        %(cdn_url)s, %(image_url)s, %(api_data)s, %(api_episode_hash)s, %(local_filename)s, %(s3_location)s, 
-                        %(original_duration)s, %(podcast_length_seconds)s, %(ad_time_removed)s, %(total_processing_time)s, 
-                        %(file_size)s, %(mime_type)s, %(upload_dt)s
-                    )
-                """
-                )
+        # Extract the episode_hash (id) for the DynamoDB key
+        episode_hash = kwargs.get("id")
+        if not episode_hash:
+            logger.error("episode_hash (id) is required for DynamoDB insert")
+            return
 
-                # Execute the insert query
-                cursor.execute(insert_query, kwargs)
+        # Prepare the item for DynamoDB
+        item = {
+            "episode_hash": episode_hash,
+            "podcast_name": kwargs.get("podcast_name", ""),
+            "episode_uuid": kwargs.get("episode_uuid", ""),
+            "episode_name": kwargs.get("episode_name", ""),
+            "episode_guid": kwargs.get("episode_guid", ""),
+            "episode_hash_name": kwargs.get("episode_hash_name", ""),
+            "episode_url": kwargs.get("episode_url", ""),
+            "cdn_url": kwargs.get("cdn_url", ""),
+            "image_url": kwargs.get("image_url", ""),
+            "api_data": kwargs.get("api_data", ""),
+            "api_episode_hash": kwargs.get("api_episode_hash", ""),
+            "local_filename": kwargs.get("local_filename", ""),
+            "s3_location": kwargs.get("s3_location", ""),
+            "original_duration": int(kwargs.get("original_duration", 0)),
+            "podcast_length_seconds": int(kwargs.get("podcast_length_seconds", 0)),
+            "ad_time_removed": int(kwargs.get("ad_time_removed", 0)),
+            "total_processing_time": int(kwargs.get("total_processing_time", 0)),
+            "file_size": int(kwargs.get("file_size", 0)),
+            "mime_type": kwargs.get("mime_type", ""),
+            "upload_dt": kwargs.get("upload_dt", datetime.utcnow()).isoformat(),
+            "status": "COMPLETED",
+            "updated_timestamp": datetime.utcnow().isoformat(),
+        }
 
-                # Commit the transaction
-                conn.commit()
+        # Insert into DynamoDB
+        METADATA_TABLE.put_item(Item=item)
+        logger.info(
+            f"Podcast metadata inserted successfully for episode_hash: {episode_hash}"
+        )
 
-                logger.info("Data inserted successfully.")
     except Exception as error:
-        logger.error(f"Error inserting data: {error}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
-
-
-def insert_pod_w_ads(**kwargs):
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                # Define the insert query
-                insert_query = sql.SQL(
-                    """
-                    INSERT INTO podcast_metadata.pod_w_ads (
-                        id, podcast_name, episode_uuid, episode_name, episode_guid, episode_url, 
-                        api_data, api_episode_hash, local_filename, original_duration, 
-                        file_size, mime_type, upload_dt
-                    ) VALUES (
-                        %(id)s, %(podcast_name)s, %(episode_uuid)s, %(episode_name)s, %(episode_guid)s, %(episode_url)s, 
-                        %(api_data)s, %(api_episode_hash)s, %(local_filename)s, %(original_duration)s,
-                        %(file_size)s, %(mime_type)s, %(upload_dt)s
-                    )
-                """
-                )
-
-                # Execute the insert query
-                cursor.execute(insert_query, kwargs)
-
-                # Commit the transaction
-                conn.commit()
-
-                logger.info("Data inserted successfully.")
-    except Exception as error:
-        logger.error(f"Error inserting data: {error}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        logger.error(f"Error inserting podcast metadata to DynamoDB: {error}")
 
 
 def insert_message(
@@ -121,70 +95,45 @@ def insert_message(
     is_archived=False,
     processing_duration=None,
 ):
-    logger.info("Inserting sqs message into the podcast_metadata.message_processing")
+    logger.info(
+        "Inserting message processing info into DynamoDB PodcastS3Metadata table"
+    )
     logger.debug(
-        f"Parameters: episode_hash={episode_hash}, status={status}, message_id={message_id}, processing_node={processing_node}, error_details={error_details}, result_data={result_data}, completed_timestamp={completed_timestamp}, retry_count={retry_count}, priority={priority}, source={aws_request_id}, is_archived={is_archived}, processing_duration={processing_duration}"
+        f"Parameters: episode_hash={episode_hash}, status={status}, message_id={message_id}, processing_node={processing_node}"
     )
 
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                timestamp = datetime.utcnow()  # Get the current UTC time
+        timestamp = datetime.utcnow().isoformat()
 
-                logger.debug(f"Current UTC timestamp: {timestamp}")
+        # Create or update the item in DynamoDB
+        item = {
+            "episode_hash": episode_hash,
+            "status": status.upper(),
+            "message_id": message_id,
+            "created_timestamp": timestamp,
+            "updated_timestamp": timestamp,
+            "processing_node": processing_node or "",
+            "error_details": error_details or "",
+            "result_data": json.dumps(result_data) if result_data else "",
+            "completed_timestamp": (
+                completed_timestamp.isoformat() if completed_timestamp else ""
+            ),
+            "retry_count": int(retry_count),
+            "priority": int(priority),
+            "aws_request_id": aws_request_id or "",
+            "is_archived": "Y" if is_archived else "N",
+            "processing_duration": (
+                int(processing_duration) if processing_duration else 0
+            ),
+        }
 
-                # Prepare the SQL INSERT statement
-                insert_query = sql.SQL(
-                    """
-                    INSERT INTO podcast_metadata.message_processing (
-                        episode_hash, message_id, status, created_timestamp, updated_timestamp, 
-                        processing_node, error_details, result_data, completed_timestamp, 
-                        retry_count, priority, aws_request_id, is_archived, processing_duration
-                    ) VALUES (
-                        %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-                    )
-                """
-                )
-
-                logger.debug(f"SQL Insert Query: {insert_query.as_string(cur)}")
-
-                # Execute the query
-                cur.execute(
-                    insert_query,
-                    (
-                        episode_hash,
-                        message_id,
-                        status,
-                        timestamp,  # created_timestamp
-                        timestamp,  # updated_timestamp
-                        processing_node,
-                        error_details,
-                        (
-                            json.dumps(result_data) if result_data else None
-                        ),  # Convert result_data to JSON
-                        completed_timestamp,
-                        retry_count,
-                        priority,
-                        aws_request_id,
-                        is_archived,
-                        processing_duration,
-                    ),
-                )
-
-                # Commit the transaction
-                conn.commit()
-
-                logger.info(
-                    f"Inserted message with episode_hash: {episode_hash} and message_id: {message_id}"
-                )
-    except Exception as error:
-        logger.error(
-            f"Error inserting data in podcast_metadata.message_processing: {error}"
+        METADATA_TABLE.put_item(Item=item)
+        logger.info(
+            f"Message processing info inserted for episode_hash: {episode_hash}, message_id: {message_id}"
         )
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed.")
+
+    except Exception as error:
+        logger.error(f"Error inserting message processing data to DynamoDB: {error}")
 
 
 def update_status(episode_hash, new_status):
@@ -192,43 +141,23 @@ def update_status(episode_hash, new_status):
     logger.debug(f"Parameters: episode_hash={episode_hash}, new_status={new_status}")
 
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                timestamp = datetime.utcnow()  # Get the current UTC time
-                logger.debug(f"Current UTC timestamp: {timestamp}")
-                # Prepare the SQL UPDATE statement
-                update_query = sql.SQL(
-                    """
-                    UPDATE podcast_metadata.message_processing
-                    SET status = %s,
-                        updated_timestamp = %s
-                    WHERE episode_hash = %s
-                """
-                )
+        timestamp = datetime.utcnow().isoformat()
+        logger.debug(f"Current UTC timestamp: {timestamp}")
 
-                # Execute the query with the new status and current timestamp
-                cur.execute(
-                    update_query,
-                    (
-                        new_status,
-                        timestamp,  # Updated timestamp to current UTC time
-                        episode_hash,
-                    ),
-                )
-                logger.info(f"Executed update query for episode_hash: {episode_hash}")
-
-                # Commit the transaction
-                conn.commit()
-                logger.info(f"Committed transaction for episode_hash: {episode_hash}")
-
-                logger.info(
-                    f"Updated status to '{new_status}' for episode_hash: {episode_hash}"
-                )
-    except Exception as error:
-        logger.error(
-            f"Error updating data in podcast_metadata.message_processing: {error}"
+        # Update the status in DynamoDB
+        METADATA_TABLE.update_item(
+            Key={"episode_hash": episode_hash},
+            UpdateExpression="SET #status = :status, updated_timestamp = :timestamp",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": new_status.upper(),
+                ":timestamp": timestamp,
+            },
         )
-    finally:
-        if conn:
-            conn.close()
-            logger.debug("Database connection closed.")
+
+        logger.info(
+            f"Updated status to '{new_status}' for episode_hash: {episode_hash}"
+        )
+
+    except Exception as error:
+        logger.error(f"Error updating status in DynamoDB: {error}")

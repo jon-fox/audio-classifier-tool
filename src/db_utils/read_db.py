@@ -1,65 +1,73 @@
-from psycopg2 import sql
-from src.db_utils.db_get_conn import get_db_connection
-import textwrap
+import logging
+import boto3
 from src.logger.logger_setup import logger
-import json
+
+dynamodb = boto3.resource("dynamodb", "us-east-1")
+METADATA_TABLE = dynamodb.Table("PodcastS3Metadata")
+
+
+def get_metadata_item(episode_hash):
+    try:
+        response = METADATA_TABLE.get_item(Key={"episode_hash": episode_hash})
+        return response.get("Item")
+    except Exception as e:
+        logger.error(f"Error fetching metadata from DynamoDB: {e}")
+        return None
 
 
 def get_podcast_url(podcast_hash):
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                logger.info(f"Getting Podcast url for episode {podcast_hash}")
-                # Define the insert query
-                read_query = f"""SELECT episode_url, podcast_name from podcast_metadata.pod_w_ads where id = '{podcast_hash}';"""
-
-                # Execute the insert query
-                logger.info(f"Executing query:: {read_query}")
-                cursor.execute(read_query)
-                first_row = cursor.fetchall()
-                logger.info(f"Retrieved rows:: {first_row}")
-                logger.info(f"URL:: {first_row[0][0]}")
-                if first_row:
-                    return first_row[0][0]
-                else:
-                    logger.info("No data found for the given podcast hash.")
-                    return None
+        logger.info(f"Getting Podcast url for episode {podcast_hash}")
+        item = get_metadata_item(podcast_hash)
+        if item and "episode_url" in item:
+            logger.info(f"URL:: {item['episode_url']}")
+            return item["episode_url"]
+        else:
+            logger.info("No data found for the given podcast hash.")
+            return None
     except Exception as error:
         logger.error(f"Error reading data: {error}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        return None
 
 
 def get_cdn_url(podcast_hash):
     try:
-        with get_db_connection() as conn:
-            with conn.cursor() as cursor:
-                logger.info(f"Getting Podcast cdn s3 url for episode {podcast_hash}")
-                # Define the insert query
-                read_query = f"""SELECT cdn_url, episode_name, episode_uuid from podcast_metadata.s3_metadata where id = '{podcast_hash}';"""
-
-                # Execute the insert query
-                logger.info(f"Executing query:: {read_query}")
-                cursor.execute(read_query)
-                first_row = cursor.fetchall()
-                logger.info(f"Retrieved rows:: {first_row}")
-                logger.info(f"URL:: {first_row[0][0]}")
-                # Check if any row is found
-                if first_row:
-                    logger.info(
-                        f"CDN URL:: {first_row[0][0]}"
-                    )  # Assuming cdn_url is what you want to log and return
-                    return first_row[0][0]  # Return the cdn_url
-                else:
-                    logger.info("No data found for the given podcast hash.")
-                    return None
+        logger.info(f"Getting Podcast cdn s3 url for episode {podcast_hash}")
+        item = get_metadata_item(podcast_hash)
+        if item and "cdn_url" in item:
+            logger.info(f"CDN URL:: {item['cdn_url']}")
+            return item["cdn_url"]
+        else:
+            logger.info("No data found for the given podcast hash.")
+            return None
     except Exception as error:
         logger.error(f"Error reading data: {error}")
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+        return None
+
+
+def get_cdn_url_and_length(episode_hash):
+    item = get_metadata_item(episode_hash)
+    if item and "cdn_url" in item:
+        return {
+            "cdn_url": item["cdn_url"],
+            "podcast_length_seconds": item.get("podcast_length_seconds", 0),
+        }
+    return None
+
+
+def get_status(episode_hash):
+    item = get_metadata_item(episode_hash)
+    return item.get("status", "na").lower() if item else "na"
+
+
+def update_metadata_status(episode_hash, status):
+    try:
+        METADATA_TABLE.update_item(
+            Key={"episode_hash": episode_hash},
+            UpdateExpression="SET #s = :s",
+            ExpressionAttributeNames={"#s": "status"},
+            ExpressionAttributeValues={":s": status},
+        )
+        logger.info(f"Updated status for {episode_hash} to {status} in DynamoDB")
+    except Exception as e:
+        logger.error(f"Error updating status in DynamoDB: {e}")
