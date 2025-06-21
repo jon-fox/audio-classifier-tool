@@ -6,7 +6,7 @@ import src.db_utils.write_to_db as write_to_db
 import boto3
 import sys
 from datetime import datetime
-from src.metadata.utils import is_terminating, get_instance_id
+from src.metadata.utils import is_terminating, get_instance_id, terminate_instance_on_error
 
 
 # uvicorn app:app --reload
@@ -176,14 +176,17 @@ def process_message(message_body, receipt_handle, message_id):
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON payload: {e}")
+        # Mark as failed in database if possible
+        terminate_instance_on_error()
     except Exception as e:
-        logger.error(f"Error processing payload: {e}")
+        logger.error(f"Critical error processing payload: {e}")
+        # Mark as failed in database if possible  
+        terminate_instance_on_error()
 
 
 def poll_sqs():
     global processing_message
     try:
-
         if not processing_message:
             logger.info("Polling SQS for messages...")
 
@@ -217,7 +220,8 @@ def poll_sqs():
             logger.info("Processing message, waiting for processing to finish...")
 
     except Exception as e:
-        logger.error(f"Error polling SQS: {e}")
+        logger.error(f"Critical error polling SQS: {e}")
+        terminate_instance_on_error()
         sys.exit(1)
 
 

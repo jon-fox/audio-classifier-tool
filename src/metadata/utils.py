@@ -1,8 +1,31 @@
 import requests
 import boto3
+import sys
 from src.logger.logger_setup import logger
 
 client = boto3.client("autoscaling", "us-east-1")
+
+
+def terminate_instance_on_error():
+    """Terminate EC2 instance when critical errors occur"""
+    try:
+        logger.error("Critical error detected - terminating EC2 instance to prevent runaway costs")
+        
+        instance_id = get_instance_id()
+        if instance_id:
+            ec2_client = boto3.client("ec2", region_name="us-east-1")
+            ec2_client.terminate_instances(InstanceIds=[instance_id])
+            logger.info(f"EC2 termination initiated for instance: {instance_id}")
+        else:
+            logger.error("Cannot get instance ID - falling back to container exit")
+            
+    except Exception as e:
+        logger.error(f"EC2 termination failed: {e} - falling back to container exit")
+    
+    # If we reach here, either EC2 termination failed or we're being extra safe
+    # Exit container so monitoring script can detect and terminate instance
+    logger.info("Exiting container - monitoring script will terminate instance")
+    sys.exit(1)
 
 
 def get_instance_id():
