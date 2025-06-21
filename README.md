@@ -1,43 +1,89 @@
-# Credentials File
+# JusSkipIt App - AI-Powered Podcast Ad Removal
+
+🎧 **[JusSkipIt.com](https://www.jusskipit.com)** - The intelligent podcast ad removal service
+
+## Overview
+
+JusSkipIt automatically detects and removes advertisements from podcast audio files using advanced AI transcription technology. This application is the core processing engine that:
+
+- Downloads podcast episodes from audio URLs
+- Uses WhisperX/OpenAI Whisper for AI-powered transcription
+- Intelligently identifies and removes advertisement segments
+- Uploads cleaned audio files to AWS S3/CloudFront CDN
+- Manages processing status via DynamoDB
+
+## Setup & Configuration
+
+### Environment Variables
+
+```bash
+# AWS Credentials
 export AWS_SHARED_CREDENTIALS_FILE=/mnt/c/Users/foxj7/.aws/credentials
 export AWS_CONFIG_FILE=/mnt/c/Users/foxj7/.aws/config
 
-# PYTHONPATH
+# Application Paths
 export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt_App"
-
 export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
+# or for local development:
+# export BASE_PATH=.
 
-or 
+# API Keys
+set OPENAI_API_KEY=your_openai_api_key_here
+```
 
-export BASE_PATH=.
+### GPU/CUDA Setup
 
-set OPENAI_API_KEY=npp
-
-# PYAUDIO
-need to set ld lib path that includes already installed python-audio dependencies
-so this venv can use it
-
+```bash
+# PyAudio & CUDA Library Path
+# Required for GPU-accelerated AI transcription
 export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
+```
 
-# CICD
-Github actions updated to wait for workflow dispatch from ui
+## Infrastructure & Deployment
 
-# Terraform init
+### Terraform Backend
+
+```bash
 terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
+```
 
-# ecs agent
+### AWS ECS Agent Setup
+
+```bash
 sudo yum install -y ecs-init
 sudo systemctl start ecs
+sudo systemctl status ecs
+```
 
-sudo systemctl status ecs 
- 
-# AMIs
-#######################
-this ami-092326650e967b14a is setup with nvidia drivers and docker
+### Pre-configured AMIs
 
-this ami-02e30e25d601cac67 is pre configured with nvidia, docker, and the jusskipit app container ready on ami in stopped state
+| AMI ID | Description |
+|--------|-------------|
+| `ami-092326650e967b14a` | NVIDIA drivers + Docker |
+| `ami-02e30e25d601cac67` | NVIDIA + Docker + JusSkipIt container (stopped) |
+| `ami-05f85bc16c1a0257a` | **Latest JusSkipIt v2** |
 
-ami-05f85bc16c1a0257a - latest for jusskipit_v2
+## CI/CD
 
-# Updates for when working on Android App
-11/28 issues using whisperx since ctranslate2 updates
+- GitHub Actions configured for workflow dispatch from UI
+- Automated deployment pipeline for ECS containers
+
+## Development Notes
+
+### Known Issues
+- **11/28**: WhisperX compatibility issues due to ctranslate2 updates
+- Monitor for audio processing library version conflicts
+
+### Architecture
+- **Container-based**: Docker with NVIDIA CUDA support
+- **AWS Integration**: ECS, S3, DynamoDB, SQS, Lambda
+- **AI Processing**: GPU-accelerated transcription for faster ad detection
+
+## Quick Start
+
+1. Set environment variables
+2. Build Docker container: `docker build -t jusskipit-app .`
+3. Run: `docker run --gpus all jusskipit-app`
+4. Application polls SQS for podcast processing requests
+
+For more information, visit **[JusSkipIt.com](https://www.jusskipit.com)**

@@ -50,10 +50,6 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    #   determine hash based on repo changes, taking last commit hash
-    # - name: Determine the image tag
-    #   run: echo "IMAGE_TAG=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-
     - name: Determine the image tag based on code changes
       run: |
         IMAGE_TAG=$(git ls-tree -r HEAD src/ | shasum | cut -c1-7)
