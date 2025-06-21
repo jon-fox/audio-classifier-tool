@@ -127,15 +127,32 @@ jobs:
           # Pull the image with the specific commit hash tag
           docker pull ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
 
-          # Run the new container with the same settings from docker-compose
+          # Run the new container with restart policy and cleanup
           docker run -d \
             --name my-service \
             -p 80:80 \
             -p 443:443 \
             --gpus all \
+            --restart=no \
             -e NVIDIA_VISIBLE_DEVICES=all \
             -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
             ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG
+
+          # Set up monitoring script that terminates instance when container exits
+          cat > ~/monitor_container.sh << 'MONITOR_EOF'
+          #!/bin/bash
+          while true; do
+            if ! docker ps | grep -q my-service; then
+              echo "Container my-service has stopped. Terminating instance..."
+              sudo shutdown -h now
+              exit 0
+            fi
+            sleep 30
+          done
+          MONITOR_EOF
+
+          chmod +x ~/monitor_container.sh
+          nohup ~/monitor_container.sh &
         EOF
 
     - name: Remove GitHub Actions runner's IP from security group
