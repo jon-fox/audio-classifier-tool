@@ -181,7 +181,7 @@ def _create_thread(filename, path, sponsors, lock):
     # thread = client.beta.threads.create()
 
     # Create a vector store called "Financial Statements"
-    vector_store = client.beta.vector_stores.create(name=filename)
+    vector_store = client.vector_stores.create(name=filename)
 
     # Ready the files for upload to OpenAI
     file_paths = [path]
@@ -189,7 +189,7 @@ def _create_thread(filename, path, sponsors, lock):
 
     # Use the upload and poll SDK helper to upload the files, add them to the vector store,
     # and poll the status of the file batch for completion.
-    file_batch = client.beta.vector_stores.file_batches.upload_and_poll(
+    file_batch = client.vector_stores.file_batches.upload_and_poll(
         vector_store_id=vector_store.id, files=file_streams
     )
 
