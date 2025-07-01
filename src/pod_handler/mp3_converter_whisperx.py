@@ -367,30 +367,23 @@ def check_cuda():
 def initialize_model_pool(device="cuda"):
     """
     Initializes a pool of Whisper models.
-
-    Parameters:
-    - number_of_models: The number of Whisper models to load into the pool. Maybe use later
-    - device: The device to load the models on. Defaults to 'cuda'.
-
-    Returns:
-    - A queue.Queue object containing the loaded Whisper models.
     """
     global model_pool
-    model_file_path = os.path.join(MODEL_DOWNLOAD_PATH, MODEL_FILE_NAME)
-    logger.info(f"Checking Model file path: {model_file_path}")
+    logger.info(f"Initializing model pool with {NUMBER_OF_MODELS} WhisperModel instances")
 
-    # Check if the model file exists
-    if not os.path.isfile(model_file_path):
-        logger.info(f"Downloading model from Hugging Face model hub")
-        whisper_model = WhisperModel(
-            "tiny", download_root=os.path.join(MODEL_DOWNLOAD_PATH), device=device
-        )
+    model_download_path = os.path.join(MODEL_DOWNLOAD_PATH)
+    logger.info(f"Model download path: {model_download_path}")
+    
+    # Check if model already exists locally
+    if os.path.exists(model_download_path):
+        logger.info(f"Pre-downloaded model found at {model_download_path}")
     else:
-        logger.info(f"Loading model from file: {model_file_path}")
-        whisper_model = WhisperModel(model_file_path, device=device)
+        logger.info(f"No pre-downloaded model found, will download during model loading")
 
-    # Load the model into the pool multiple times
-    for _ in range(NUMBER_OF_MODELS):
+    for i in range(NUMBER_OF_MODELS):
+        logger.info(f"Loading model {i + 1}/{NUMBER_OF_MODELS} from {model_download_path}")
+        whisper_model = WhisperModel(MODEL_SIZE, download_root=model_download_path, device=device)
+        logger.info(f"Model {i + 1}/{NUMBER_OF_MODELS} loaded successfully")
         model_pool.put(whisper_model)
 
 

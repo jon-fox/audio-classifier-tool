@@ -39,6 +39,9 @@ COPY certs/ /app/certs
 
 ENV PYTHONPATH=/app
 
+# Pre-download Whisper model during build
+RUN python3.11 -c "from faster_whisper import WhisperModel; import os; os.makedirs('/app/local_models/tiny', exist_ok=True); WhisperModel('tiny', download_root='/app/local_models/tiny')"
+
 EXPOSE 80 443
 
 CMD ["python3.11", "/app/src/main.py"]
