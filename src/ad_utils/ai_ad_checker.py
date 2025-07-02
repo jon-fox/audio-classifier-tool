@@ -97,6 +97,56 @@ def get_ad_checker_instructions(sponsors=None):
           - Public relations-driven messaging emphasizing goodwill or societal impact.
           - Invitations to explore the organization's work rather than purchase a product (e.g., "Learn more about our mission").
 
+        ##### Gambling and Betting:
+        - Mentions of betting platforms, casinos, or wagering apps.
+        - Use of odds, disclaimers, or age restrictions (e.g., "Must be 21 or older").
+        - Phrases like "risk-free bets," "lock in your picks," or "bet responsibly."
+
+        ##### Tobacco, Nicotine, and Vaping:
+        - Mentions of e-cigarettes, vaping pods, nicotine pouches, or smokeless products.
+        - Framing products as harm reduction or "cleaner alternatives."
+        - Phrases like "quit smoking the smart way," "nicotine without the smoke."
+
+        ##### Pharmaceuticals and Health Claims:
+        - Promotion of prescription or over-the-counter drugs, supplements, or treatments.
+        - Health claims (e.g., "boost immunity," "clinically proven," "doctor recommended").
+        - References to FDA approval or regulatory compliance.
+
+        ##### Adult Content and Intimate Wellness Products:
+        - Promotion of dating platforms, adult content, or intimacy-related services.
+        - **For men**:
+        - Phrases like "natural male enhancement," "improve performance," "testosterone boosters."
+        - **For women**:
+        - Terms like "intimate wellness," "boost libido," "feminine rejuvenation," "feel sexier."
+        - Euphemistic or pseudo-medical language around intimacy, confidence, or bedroom health.
+        - Includes supplements, devices, oils, and therapies marketed for sexual benefit or appeal.
+
+        ##### Gender-Targeted Lifestyle and Beauty Promotions:
+        - Skincare, makeup, cosmetics, or beauty product promotions.
+        - Phrases like "glowing skin," "age-defying," "get your best look."
+        - Hair care, waxing, nail, or personal grooming products.
+        - Phrases like "salon-quality at home," "confidence starts with your hair."
+        - Self-care and empowerment framing.
+        - "You deserve it," "treat yourself," "upgrade your routine."
+        - Weight loss or body image-focused products (e.g., slimming teas, detox kits, body sculpting).
+        - "Flatten your stomach," "get your summer body," "shed stubborn weight."
+
+        #### Common Podcast Ad Categories
+        Flag content that includes brand mentions, promo codes, or clear calls to action in these frequent podcast-ad verticals:
+        - **Finance & Investing** - credit cards, trading apps, robo-advisors ("get $10 in free BTC").
+        - **Tech & Cybersecurity** - VPNs, password managers, cloud backup ("try it free for 30 days").
+        - **Food & Beverage Delivery** - meal kits, snack boxes, coffee/wine clubs ("use code PODCAST").
+        - **Health & Wellness Services** - telehealth, therapy platforms, fitness apps, at-home lab tests.
+        - **DTC Home & Lifestyle** - mattresses, bedding, furniture-in-a-box, home security.
+        - **Beauty & Grooming** - razor clubs, hair-loss treatments, skincare subscriptions.
+        - **Education & Career** - online courses, coding bootcamps, certificate programs.
+        - **Pet Products** - pet-food subscriptions, tele-vet services, training apps.
+        - **Entertainment & Media** - audiobooks, streaming services, ticket platforms.
+        - **Travel & Mobility** - airlines, vacation bundles, rental cars, micro-mobility.
+        - **Charitable & Political Appeals** - nonprofit fundraising, ballot-initiative promotions.
+
+        Look for discount language, free trials, urgency ("sign up today"), or problem-solution framing to confirm promotional intent.
+
         #### Calls to Action:
         - Language prompting actions like:
           - Visiting a website or using a promo code (e.g., "Use code PODCAST for 20% off").
