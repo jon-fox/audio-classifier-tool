@@ -7,7 +7,7 @@ import boto3
 import sys
 from datetime import datetime
 from src.metadata.utils import is_terminating, get_instance_id, terminate_instance_on_error
-
+from src.alerts.discord_alerts import send_error_alert, send_processing_alert
 
 # uvicorn app:app --reload
 # curl -L "http://localhost:8000/stream?url=<MP3_FILE_URL>"
@@ -39,9 +39,10 @@ def prepare_mp3_file(
 ):
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
+    s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3"  # HACK may shorten this later
+    cdn_url = f"{CDN_BASE_URL}/{s3_path}"
+    
     try:
-        s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3"  # HACK may shorten this later
-        cdn_url = f"{CDN_BASE_URL}/{s3_path}"
         processed_podcast_length = mp3_handler(
             podcast_name, podcast_description, cdn_url, episode_hash, audio_url
         )
@@ -54,6 +55,17 @@ def prepare_mp3_file(
         return processed_podcast_length, cdn_url
     except Exception as e:
         logger.error(f"Error processing MP3 file::{e}")
+        send_error_alert(
+            error=e,
+            context="MP3 file processing failed in prepare_mp3_file",
+            episode_name=json_data.get("episodes", [{}])[0].get("name", "Unknown Episode") if json_data else "Unknown Episode",
+            podcast_name=podcast_name,
+            additional_info={
+                "audio_url": audio_url,
+                "episode_hash": episode_hash,
+                "cdn_url": cdn_url
+            }
+        )
         raise e
 
 
@@ -154,6 +166,7 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
         logger.info(
             f"Processed podcast length::{processed_podcast_length}, CDN URL::{cdn_url}"
         )
+        
         if payload.get("add_to_rss_feed", False):
             logger.info(
                 f"Adding episode to Rss feed::{episode_hash}, invoking rss feed update lambda"
@@ -164,22 +177,64 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
             logger.info(
                 f"RSS Feed Update Lambda invoked for episode {podcast_name}, and hash {episode_hash}"
             )
+        
+        # Send success alert
+        send_processing_alert(
+            message_type="success",
+            podcast_name=podcast_name,
+            episode_name=episode_name,
+            additional_info={
+                "Episode Hash": episode_hash,
+                "Processed Length": f"{processed_podcast_length} seconds",
+                "CDN URL": cdn_url,
+                "Added to RSS": "Yes" if payload.get("add_to_rss_feed", False) else "No"
+            }
+        )
     else:
         logger.info("No payload received")
 
 
 def process_message(message_body, receipt_handle, message_id):
+    episode_name = "Unknown Episode"
+    podcast_name = "Unknown Podcast"
+    
     try:
         payload = json.loads(message_body)
         logger.info(f"Processing payload: {payload}")
+        
+        # Extract episode info for error reporting
+        episode_name = payload.get("episode_name", "Unknown Episode")
+        podcast_name = payload.get("podcast_name", "Unknown Podcast")
+        
         process_payload(payload, receipt_handle, message_id)
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
         logger.error(f"Invalid JSON payload: {e}")
+        send_error_alert(
+            error=e,
+            context="JSON decode error in process_message",
+            episode_name=episode_name,
+            podcast_name=podcast_name,
+            additional_info={
+                "message_id": message_id,
+                "receipt_handle": receipt_handle,
+                "message_body": message_body[:500] + "..." if len(message_body) > 500 else message_body
+            }
+        )
         # Mark as failed in database if possible
         terminate_instance_on_error()
     except Exception as e:
         logger.error(f"Critical error processing payload: {e}")
+        send_error_alert(
+            error=e,
+            context="Critical error in process_message",
+            episode_name=episode_name,
+            podcast_name=podcast_name,
+            additional_info={
+                "message_id": message_id,
+                "receipt_handle": receipt_handle
+            }
+        )
         # Mark as failed in database if possible  
         terminate_instance_on_error()
 
@@ -221,6 +276,14 @@ def poll_sqs():
 
     except Exception as e:
         logger.error(f"Critical error polling SQS: {e}")
+        send_error_alert(
+            error=e,
+            context="Critical error in poll_sqs function",
+            additional_info={
+                "sqs_url": SQS_URL,
+                "processing_message": processing_message
+            }
+        )
         terminate_instance_on_error()
         sys.exit(1)
 

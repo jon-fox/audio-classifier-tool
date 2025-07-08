@@ -1,6 +1,7 @@
 import os
 import requests
 from src.logger.logger_setup import logger
+from src.alerts.discord_alerts import send_error_alert
 
 
 def download_episode(episode_name, audio_url, save_path):
@@ -30,7 +31,29 @@ def download_episode(episode_name, audio_url, save_path):
                 file_path,
             )  # returning file size and file path
         else:
-            logger.info("Failed to download the episode")
-            logger.info(f"Response status code: {response}")
+            error_msg = f"Failed to download the episode. Response status code: {response.status_code}"
+            logger.error(error_msg)
+            send_error_alert(
+                error=error_msg,
+                context="HTTP error in download_episode",
+                episode_name=episode_name,
+                additional_info={
+                    "audio_url": audio_url,
+                    "status_code": response.status_code,
+                    "response_text": response.text[:500] if hasattr(response, 'text') else "No response text"
+                }
+            )
+            raise Exception(error_msg)
     except Exception as e:
         logger.error(f"Error downloading episode: {e}")
+        send_error_alert(
+            error=e,
+            context="Exception in download_episode",
+            episode_name=episode_name,
+            additional_info={
+                "audio_url": audio_url,
+                "save_path": save_path,
+                "file_path": file_path
+            }
+        )
+        raise e

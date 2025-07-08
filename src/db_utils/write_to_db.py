@@ -1,5 +1,6 @@
 import boto3
 from src.logger.logger_setup import logger
+from src.alerts.discord_alerts import send_error_alert
 import hashlib
 from datetime import datetime
 import json
@@ -79,6 +80,16 @@ def insert_podcast_metadata(**kwargs):
 
     except Exception as error:
         logger.error(f"Error inserting podcast metadata to DynamoDB: {error}")
+        send_error_alert(
+            error=error,
+            context="Failed to insert podcast metadata to DynamoDB",
+            additional_info={
+                "episode_hash": kwargs.get("id", "unknown"),
+                "table_name": "PodcastS3Metadata",
+                "podcast_name": kwargs.get("podcast_name", "unknown"),
+                "episode_name": kwargs.get("episode_name", "unknown")
+            }
+        )
 
 
 def insert_message(
@@ -134,6 +145,16 @@ def insert_message(
 
     except Exception as error:
         logger.error(f"Error inserting message processing data to DynamoDB: {error}")
+        send_error_alert(
+            error=error,
+            context="Failed to insert message processing data to DynamoDB",
+            additional_info={
+                "episode_hash": episode_hash,
+                "message_id": message_id,
+                "status": status,
+                "table_name": "PodcastS3Metadata"
+            }
+        )
 
 
 def update_status(episode_hash, new_status):
@@ -161,3 +182,12 @@ def update_status(episode_hash, new_status):
 
     except Exception as error:
         logger.error(f"Error updating status in DynamoDB: {error}")
+        send_error_alert(
+            error=error,
+            context="Failed to update status in DynamoDB",
+            additional_info={
+                "episode_hash": episode_hash,
+                "new_status": new_status,
+                "table_name": "PodcastS3Metadata"
+            }
+        )

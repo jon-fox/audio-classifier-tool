@@ -2,6 +2,7 @@ import requests
 import boto3
 import sys
 from src.logger.logger_setup import logger
+from src.alerts.discord_alerts import send_error_alert
 
 client = boto3.client("autoscaling", "us-east-1")
 
@@ -10,6 +11,16 @@ def terminate_instance_on_error():
     """Terminate EC2 instance when critical errors occur"""
     try:
         logger.error("Critical error detected - terminating EC2 instance to prevent runaway costs")
+        
+        # Send Discord alert about the critical error
+        send_error_alert(
+            error="Critical error detected - instance termination initiated",
+            context="Critical error in terminate_instance_on_error",
+            additional_info={
+                "action": "Instance termination initiated",
+                "reason": "Prevent runaway costs due to critical error"
+            }
+        )
         
         instance_id = get_instance_id()
         if instance_id:
@@ -21,6 +32,13 @@ def terminate_instance_on_error():
             
     except Exception as e:
         logger.error(f"EC2 termination failed: {e} - falling back to container exit")
+        send_error_alert(
+            error=e,
+            context="EC2 termination failed in terminate_instance_on_error",
+            additional_info={
+                "fallback_action": "Container exit"
+            }
+        )
     
     # If we reach here, either EC2 termination failed or we're being extra safe
     # Exit container so monitoring script can detect and terminate instance

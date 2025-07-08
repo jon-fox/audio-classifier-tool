@@ -17,6 +17,7 @@ from src.ad_utils.ai_ad_checker import (
     fetch_sponsors,
 )
 from src.logger.logger_setup import logger
+from src.alerts.discord_alerts import send_error_alert
 import threading
 
 # import whisper
@@ -421,6 +422,15 @@ def extract_segments(segments, start_time, end_time):
         ]
     except Exception as e:
         logger.error(f"Error extracting segments: {e}")
+        send_error_alert(
+            error=e,
+            context="Error during segment extraction in mp3_converter_whisperx",
+            additional_info={
+                "start_time": start_time,
+                "end_time": end_time,
+                "segments_count": len(segments) if 'segments' in locals() else "unknown"
+            }
+        )
         raise Exception(f"An error occurred during segment extraction: {str(e)}")
     # for segment in segments:
     #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
@@ -525,6 +535,15 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         model_pool.put(model)
     except Exception as e:
         logger.error(traceback.format_exc())
+        send_error_alert(
+            error=e,
+            context="Error during transcription in mp3_converter_whisperx",
+            additional_info={
+                "segment_index": index,
+                "transcript_file": f"transcript_{index}_logging.json",
+                "traceback": traceback.format_exc()[:500]  # Truncate traceback
+            }
+        )
         raise Exception(
             f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}"
         )

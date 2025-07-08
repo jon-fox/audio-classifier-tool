@@ -11,6 +11,7 @@ from src.config.constants import *
 from src.logger.logger_setup import logger
 from src.s3.write_to_s3 import upload_file_to_s3
 from src.db_utils import write_to_db
+from src.alerts.discord_alerts import send_error_alert
 
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -44,125 +45,219 @@ def mp3_handler(
     episode_data={},
     json_data={},
 ):
+    episode_name = getattr(episode_data, "name", "") or json_data.get("episodes", [{}])[0].get("name", "Unknown Episode") if json_data else "Unknown Episode"
+    
+    try:
+        # Load the MP3 file
+        start_time = time.time()
 
-    # Load the MP3 file
-    start_time = time.time()
+        logger.info(f"Removing ads from episode and storing in Spaces:: {podcast_name}")
 
-    logger.info(f"Removing ads from episode and storing in Spaces:: {podcast_name}")
-
-    saved_episode_name = f"{hashkey}.mp3"
-    file_size, local_path = download_episode(
-        saved_episode_name, audio_url, DOWNLOAD_DIR
-    )
-
-    podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(
-        audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
-        podcast_description=podcast_description,
-    )
-
-    logger.info(
-        f"Episode {saved_episode_name} has been processed, ads removed, new duration: "
-        f"{podcast_length} vs original duration: {original_duration}"
-    )
-
-    end_time = time.time()
-
-    total_processing_time = end_time - start_time
-
-    logger.info(f"Time taken: {total_processing_time} seconds")
-
-    s3_key = f"{podcast_name}/{hashkey}"
-
-    episode_s3_key = f"{s3_key}/{saved_episode_name}"
-    s3_location = f"{BUCKET_NAME}/{episode_s3_key}"
-
-    logger.info(f"Uploaded file to {s3_location}")
-
-    upload_file_to_s3(BUCKET_NAME, episode_s3_key, mp3_output_path)
-
-    logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
-    logger.info(
-        f"Episode Length: {podcast_length} seconds, "
-        f"Original Duration: {original_duration} seconds, Removed: {original_duration - podcast_length} seconds"
-    )
-
-    # Example usage
-    write_to_db.insert_podcast_metadata(
-        id=hashkey,
-        podcast_name=podcast_name,
-        episode_uuid=getattr(episode_data, "uuid", "") or "",
-        episode_name=getattr(episode_data, "name", "") or "",
-        episode_guid=getattr(episode_data, "guid", "") or "",
-        episode_hash_name=saved_episode_name or "",
-        episode_url=audio_url,
-        cdn_url=cdn_url,
-        image_url=getattr(episode_data, "imageUrl", "") or "",
-        api_data=json.dumps(json_data) or "",
-        api_episode_hash=getattr(episode_data, "hash", "") or "",
-        local_filename=local_path,
-        s3_location=s3_location,
-        podcast_length_seconds=int(podcast_length),
-        original_duration=int(original_duration),
-        ad_time_removed=int(original_duration - podcast_length),
-        total_processing_time=int(total_processing_time),
-        file_size=file_size,
-        mime_type="audio/mpeg",
-        upload_dt=datetime.datetime.now(),
-    )
-
-    logger.info(f"Data inserted successfully for episode {hashkey}")
-
-    logger.info(
-        f"Updating status for episode {hashkey} to COMPLETED in db podcast_metadata.message_processing"
-    )
-    write_to_db.update_status(hashkey, "COMPLETED")
-
-    # write transcripts to s3
-    transcript_files = [
-        f for f in os.listdir(script_dir) if f.endswith("_logging.json")
-    ]
-
-    # Upload each transcript file to S3
-    for transcript_file in transcript_files:
+        saved_episode_name = f"{hashkey}.mp3"
+        
         try:
-            local_path = os.path.join(script_dir, transcript_file)
-            transcript_s3_key = f"{s3_key}/{transcript_file}"
-            upload_file_to_s3(BUCKET_NAME, transcript_s3_key, local_path)
+            file_size, local_path = download_episode(
+                saved_episode_name, audio_url, DOWNLOAD_DIR
+            )
+        except Exception as e:
+            send_error_alert(
+                error=e,
+                context="Failed to download episode in mp3_handler",
+                episode_name=episode_name,
+                podcast_name=podcast_name,
+                additional_info={
+                    "audio_url": audio_url,
+                    "hashkey": hashkey,
+                    "saved_episode_name": saved_episode_name
+                }
+            )
+            raise e
 
-            logger.info(f"Uploaded transcript file to S3: {transcript_s3_key}")
+        try:
+            podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(
+                audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
+                podcast_description=podcast_description,
+            )
+        except Exception as e:
+            send_error_alert(
+                error=e,
+                context="Failed to remove ads from audio in mp3_handler",
+                episode_name=episode_name,
+                podcast_name=podcast_name,
+                additional_info={
+                    "hashkey": hashkey,
+                    "audio_file": get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
+                    "podcast_description_length": len(podcast_description) if podcast_description else 0
+                }
+            )
+            raise e
 
-            # Remove the transcript file after uploading
+        logger.info(
+            f"Episode {saved_episode_name} has been processed, ads removed, new duration: "
+            f"{podcast_length} vs original duration: {original_duration}"
+        )
+
+        end_time = time.time()
+
+        total_processing_time = end_time - start_time
+
+        logger.info(f"Time taken: {total_processing_time} seconds")
+
+        s3_key = f"{podcast_name}/{hashkey}"
+
+        episode_s3_key = f"{s3_key}/{saved_episode_name}"
+        s3_location = f"{BUCKET_NAME}/{episode_s3_key}"
+
+        logger.info(f"Uploaded file to {s3_location}")
+
+        try:
+            upload_file_to_s3(BUCKET_NAME, episode_s3_key, mp3_output_path)
+        except Exception as e:
+            send_error_alert(
+                error=e,
+                context="Failed to upload file to S3 in mp3_handler",
+                episode_name=episode_name,
+                podcast_name=podcast_name,
+                additional_info={
+                    "bucket": BUCKET_NAME,
+                    "s3_key": episode_s3_key,
+                    "local_path": mp3_output_path,
+                    "hashkey": hashkey
+                }
+            )
+            raise e
+
+        logger.info(f"Saving hashkey for episode {podcast_name}, hashkey {hashkey}")
+        logger.info(
+            f"Episode Length: {podcast_length} seconds, "
+            f"Original Duration: {original_duration} seconds, Removed: {original_duration - podcast_length} seconds"
+        )
+
+        # Example usage
+        try:
+            write_to_db.insert_podcast_metadata(
+                id=hashkey,
+                podcast_name=podcast_name,
+                episode_uuid=getattr(episode_data, "uuid", "") or "",
+                episode_name=getattr(episode_data, "name", "") or "",
+                episode_guid=getattr(episode_data, "guid", "") or "",
+                episode_hash_name=saved_episode_name or "",
+                episode_url=audio_url,
+                cdn_url=cdn_url,
+                image_url=getattr(episode_data, "imageUrl", "") or "",
+                api_data=json.dumps(json_data) or "",
+                api_episode_hash=getattr(episode_data, "hash", "") or "",
+                local_filename=local_path,
+                s3_location=s3_location,
+                podcast_length_seconds=int(podcast_length),
+                original_duration=int(original_duration),
+                ad_time_removed=int(original_duration - podcast_length),
+                total_processing_time=int(total_processing_time),
+                file_size=file_size,
+                mime_type="audio/mpeg",
+                upload_dt=datetime.datetime.now(),
+            )
+        except Exception as e:
+            send_error_alert(
+                error=e,
+                context="Failed to insert podcast metadata in mp3_handler",
+                episode_name=episode_name,
+                podcast_name=podcast_name,
+                additional_info={
+                    "hashkey": hashkey,
+                    "s3_location": s3_location,
+                    "podcast_length": podcast_length,
+                    "file_size": file_size
+                }
+            )
+            raise e
+
+        logger.info(f"Data inserted successfully for episode {hashkey}")
+
+        logger.info(
+            f"Updating status for episode {hashkey} to COMPLETED in db podcast_metadata.message_processing"
+        )
+        try:
+            write_to_db.update_status(hashkey, "COMPLETED")
+        except Exception as e:
+            send_error_alert(
+                error=e,
+                context="Failed to update status to COMPLETED in mp3_handler",
+                episode_name=episode_name,
+                podcast_name=podcast_name,
+                additional_info={
+                    "hashkey": hashkey,
+                    "new_status": "COMPLETED"
+                }
+            )
+            raise e
+
+        # write transcripts to s3
+        transcript_files = [
+            f for f in os.listdir(script_dir) if f.endswith("_logging.json")
+        ]
+
+        # Upload each transcript file to S3
+        for transcript_file in transcript_files:
             try:
-                os.remove(local_path)
-                logger.info(f"Removed local transcript file: {local_path}")
+                local_path = os.path.join(script_dir, transcript_file)
+                transcript_s3_key = f"{s3_key}/{transcript_file}"
+                upload_file_to_s3(BUCKET_NAME, transcript_s3_key, local_path)
+
+                logger.info(f"Uploaded transcript file to S3: {transcript_s3_key}")
+
+                # Remove the transcript file after uploading
+                try:
+                    os.remove(local_path)
+                    logger.info(f"Removed local transcript file: {local_path}")
+                except Exception as e:
+                    logger.error(f"Error removing local transcript file: {e}")
             except Exception as e:
-                logger.error(f"Error removing local transcript file: {e}")
-        except Exception as e:
-            logger.error(f"Error uploading transcript file to S3: {e}")
+                logger.error(f"Error uploading transcript file to S3: {e}")
 
-    # Clean up MP3 and WAV files in the downloads directory
-    audio_files = [
-        f for f in os.listdir(DOWNLOAD_DIR) if f.endswith(".mp3") or f.endswith(".wav")
-    ]
-    logger.info(f"Removing local audio files: {audio_files}")
-    for audio_file in audio_files:
+        # Clean up MP3 and WAV files in the downloads directory
+        audio_files = [
+            f for f in os.listdir(DOWNLOAD_DIR) if f.endswith(".mp3") or f.endswith(".wav")
+        ]
+        logger.info(f"Removing local audio files: {audio_files}")
+        for audio_file in audio_files:
+            try:
+                audio_path = os.path.join(DOWNLOAD_DIR, audio_file)
+                os.remove(audio_path)
+                logger.info(f"Removed local audio file: {audio_path}")
+            except Exception as e:
+                logger.error(f"Error removing local audio file: {e}")
+
+        # Clean up MP3 and WAV files in the base directory
+        audio_files = [
+            f for f in os.listdir(BASE_PATH) if f.endswith(".mp3") or f.endswith(".wav")
+        ]
+        for audio_file in audio_files:
+            try:
+                audio_path = os.path.join(BASE_PATH, audio_file)
+                os.remove(audio_path)
+                logger.info(f"Removed local audio file: {audio_path}")
+            except Exception as e:
+                logger.error(f"Error removing local audio file: {e}")
+
+        return podcast_length
+        
+    except Exception as e:
+        logger.error(f"Critical error in mp3_handler: {e}")
+        send_error_alert(
+            error=e,
+            context="Critical error in mp3_handler function",
+            episode_name=episode_name,
+            podcast_name=podcast_name,
+            additional_info={
+                "hashkey": hashkey,
+                "audio_url": audio_url,
+                "cdn_url": cdn_url
+            }
+        )
+        # Update status to FAILED before raising
         try:
-            audio_path = os.path.join(DOWNLOAD_DIR, audio_file)
-            os.remove(audio_path)
-            logger.info(f"Removed local audio file: {audio_path}")
-        except Exception as e:
-            logger.error(f"Error removing local audio file: {e}")
-
-    # Clean up MP3 and WAV files in the base directory
-    audio_files = [
-        f for f in os.listdir(BASE_PATH) if f.endswith(".mp3") or f.endswith(".wav")
-    ]
-    for audio_file in audio_files:
-        try:
-            audio_path = os.path.join(BASE_PATH, audio_file)
-            os.remove(audio_path)
-            logger.info(f"Removed local audio file: {audio_path}")
-        except Exception as e:
-            logger.error(f"Error removing local audio file: {e}")
-
-    return podcast_length
+            write_to_db.update_status(hashkey, "FAILED")
+        except:
+            pass  # Don't fail on status update failure during error handling
+        raise e
