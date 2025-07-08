@@ -3,7 +3,6 @@ import boto3
 import traceback
 from datetime import datetime
 from src.logger.logger_setup import logger
-from src.metadata.utils import get_instance_id
 
 
 class DiscordAlerter:
@@ -11,11 +10,21 @@ class DiscordAlerter:
         try:
             ssm = boto3.client("ssm", region_name="us-east-1")
             self.webhook_url = ssm.get_parameter(Name="/application/discord/errors_webhook")['Parameter']['Value']
-            self.instance_id = get_instance_id() or "UNKNOWN"
+            # Use lazy import to avoid circular dependency
+            self.instance_id = self._get_instance_id() or "UNKNOWN"
         except Exception as e:
             logger.error(f"Failed to initialize Discord alerter: {e}")
             self.webhook_url = None
             self.instance_id = "UNKNOWN"
+
+    def _get_instance_id(self):
+        """Lazy import to avoid circular dependency"""
+        try:
+            from src.metadata.utils import get_instance_id
+            return get_instance_id()
+        except ImportError as e:
+            logger.warning(f"Could not import get_instance_id: {e}")
+            return None
 
     def send_error_alert(self, error, context="", episode_name="", podcast_name="", additional_info=None):
         """
