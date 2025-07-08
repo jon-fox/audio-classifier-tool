@@ -206,6 +206,18 @@ def process_message(message_body, receipt_handle, message_id):
         episode_name = payload.get("episode_name", "Unknown Episode")
         podcast_name = payload.get("podcast_name", "Unknown Podcast")
         
+        # Send processing started alert
+        send_processing_alert(
+            message_type="started",
+            podcast_name=podcast_name,
+            episode_name=episode_name,
+            additional_info={
+                "Message ID": message_id,
+                "Audio URL": payload.get("audio_url", "Unknown"),
+                "Add to RSS": "Yes" if payload.get("add_to_rss_feed", False) else "No"
+            }
+        )
+        
         process_payload(payload, receipt_handle, message_id)
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
