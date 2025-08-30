@@ -247,6 +247,26 @@ def process_message(message_body, receipt_handle, message_id):
                 "receipt_handle": receipt_handle
             }
         )
+        # Send additional error alert with message payload
+        send_error_alert(
+            error=e,
+            context="Message payload causing critical error",
+            episode_name=episode_name,
+            podcast_name=podcast_name,
+            additional_info={
+                "message_id": message_id,
+                "receipt_handle": receipt_handle,
+                "message_body": message_body[:500] + "..." if len(message_body) > 500 else message_body
+            }
+        )
+        # Delete the message from the queue
+        try:
+            sqs_client.delete_message(
+                QueueUrl=SQS_URL, ReceiptHandle=receipt_handle
+            )
+            logger.info("Failed message deleted from the queue")
+        except Exception as delete_error:
+            logger.error(f"Failed to delete message from queue: {delete_error}")
         # Mark as failed in database if possible  
         terminate_instance_on_error()
 
