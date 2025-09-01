@@ -40,8 +40,12 @@ def download_episode(episode_name, audio_url, save_path):
                 additional_info={
                     "audio_url": audio_url,
                     "status_code": response.status_code,
-                    "response_text": response.text[:500] if hasattr(response, 'text') else "No response text"
-                }
+                    "response_text": (
+                        response.text[:500]
+                        if hasattr(response, "text")
+                        else "No response text"
+                    ),
+                },
             )
             raise Exception(error_msg)
     except Exception as e:
@@ -53,7 +57,7 @@ def download_episode(episode_name, audio_url, save_path):
             additional_info={
                 "audio_url": audio_url,
                 "save_path": save_path,
-                "file_path": file_path
-            }
+                "file_path": file_path,
+            },
         )
         raise e

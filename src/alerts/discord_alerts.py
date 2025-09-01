@@ -9,7 +9,9 @@ class DiscordAlerter:
     def __init__(self):
         try:
             ssm = boto3.client("ssm", region_name="us-east-1")
-            self.webhook_url = ssm.get_parameter(Name="/application/discord/errors_webhook")['Parameter']['Value']
+            self.webhook_url = ssm.get_parameter(
+                Name="/application/discord/errors_webhook"
+            )["Parameter"]["Value"]
             # Use lazy import to avoid circular dependency
             self.instance_id = self._get_instance_id() or "UNKNOWN"
         except Exception as e:
@@ -21,15 +23,18 @@ class DiscordAlerter:
         """Lazy import to avoid circular dependency"""
         try:
             from src.metadata.utils import get_instance_id
+
             return get_instance_id()
         except ImportError as e:
             logger.warning(f"Could not import get_instance_id: {e}")
             return None
 
-    def send_error_alert(self, error, context="", episode_name="", podcast_name="", additional_info=None):
+    def send_error_alert(
+        self, error, context="", episode_name="", podcast_name="", additional_info=None
+    ):
         """
         Send a detailed error alert to Discord
-        
+
         Args:
             error: The exception object or error message
             context: Additional context about where the error occurred
@@ -44,13 +49,17 @@ class DiscordAlerter:
         try:
             # Build the error message
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-            
+
             # Extract error details
             if isinstance(error, Exception):
                 error_type = type(error).__name__
                 error_message = str(error)
                 # Get traceback if available
-                tb_str = traceback.format_exc() if hasattr(error, '__traceback__') else "No traceback available"
+                tb_str = (
+                    traceback.format_exc()
+                    if hasattr(error, "__traceback__")
+                    else "No traceback available"
+                )
             else:
                 error_type = "Error"
                 error_message = str(error)
@@ -65,17 +74,19 @@ class DiscordAlerter:
 
             if podcast_name:
                 message_parts.append(f"**Podcast:** {podcast_name}")
-            
+
             if episode_name:
                 message_parts.append(f"**Episode:** {episode_name}")
-            
+
             if context:
                 message_parts.append(f"**Context:** {context}")
 
-            message_parts.extend([
-                f"**Error Type:** {error_type}",
-                f"**Error Message:** {error_message}",
-            ])
+            message_parts.extend(
+                [
+                    f"**Error Type:** {error_type}",
+                    f"**Error Message:** {error_message}",
+                ]
+            )
 
             if additional_info:
                 message_parts.append("**Additional Info:**")
@@ -85,14 +96,14 @@ class DiscordAlerter:
             # Add truncated traceback (Discord has message limits)
             if tb_str and tb_str != "No traceback available":
                 # Truncate traceback to avoid Discord message limits (2000 chars)
-                tb_lines = tb_str.split('\n')
+                tb_lines = tb_str.split("\n")
                 if len(tb_str) > 1000:
-                    tb_str = '\n'.join(tb_lines[:10]) + "\n... (traceback truncated)"
-                
+                    tb_str = "\n".join(tb_lines[:10]) + "\n... (traceback truncated)"
+
                 message_parts.append(f"**Traceback:**\n```\n{tb_str}\n```")
 
             final_message = "\n".join(message_parts)
-            
+
             # Ensure message doesn't exceed Discord's 2000 character limit
             if len(final_message) > 1900:
                 final_message = final_message[:1900] + "\n... (message truncated)"
@@ -100,22 +111,26 @@ class DiscordAlerter:
             # Send to Discord
             payload = {"content": final_message}
             response = requests.post(self.webhook_url, json=payload, timeout=10)
-            
+
             if response.status_code == 204:
                 logger.info("Discord error alert sent successfully")
                 return True
             else:
-                logger.error(f"Failed to send Discord alert. Status: {response.status_code}, Response: {response.text}")
+                logger.error(
+                    f"Failed to send Discord alert. Status: {response.status_code}, Response: {response.text}"
+                )
                 return False
 
         except Exception as e:
             logger.error(f"Error sending Discord alert: {e}")
             return False
 
-    def send_processing_alert(self, message_type, podcast_name="", episode_name="", additional_info=None):
+    def send_processing_alert(
+        self, message_type, podcast_name="", episode_name="", additional_info=None, alert_title="PROCESSING"
+    ):
         """
         Send processing status alerts (success, start, etc.)
-        
+
         Args:
             message_type: Type of message (success, started, warning, etc.)
             podcast_name: Name of the podcast
@@ -128,18 +143,13 @@ class DiscordAlerter:
 
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
-            
-            emoji_map = {
-                "success": "✅",
-                "started": "🚀",
-                "warning": "⚠️",
-                "info": "ℹ️"
-            }
-            
+
+            emoji_map = {"success": "✅", "started": "🚀", "warning": "⚠️", "info": "ℹ️"}
+
             emoji = emoji_map.get(message_type, "📢")
-            
+
             message_parts = [
-                f"{emoji} **JUSSKIPIT PROCESSING UPDATE**",
+                f"{emoji} **JUSSKIPIT {alert_title} UPDATE**",
                 f"**Type:** {message_type.upper()}",
                 f"**Timestamp:** {timestamp}",
                 f"**Instance ID:** {self.instance_id}",
@@ -147,7 +157,7 @@ class DiscordAlerter:
 
             if podcast_name:
                 message_parts.append(f"**Podcast:** {podcast_name}")
-            
+
             if episode_name:
                 message_parts.append(f"**Episode:** {episode_name}")
 
@@ -156,15 +166,17 @@ class DiscordAlerter:
                     message_parts.append(f"**{key}:** {value}")
 
             final_message = "\n".join(message_parts)
-            
+
             payload = {"content": final_message}
             response = requests.post(self.webhook_url, json=payload, timeout=10)
-            
+
             if response.status_code == 204:
                 logger.info(f"Discord {message_type} alert sent successfully")
                 return True
             else:
-                logger.error(f"Failed to send Discord {message_type} alert. Status: {response.status_code}")
+                logger.error(
+                    f"Failed to send Discord {message_type} alert. Status: {response.status_code}"
+                )
                 return False
 
         except Exception as e:
@@ -176,15 +188,33 @@ class DiscordAlerter:
 discord_alerter = DiscordAlerter()
 
 
-def send_error_alert(error, context="", episode_name="", podcast_name="", additional_info=None):
+def send_error_alert(
+    error, context="", episode_name="", podcast_name="", additional_info=None
+):
     """
     Convenience function to send error alerts
     """
-    return discord_alerter.send_error_alert(error, context, episode_name, podcast_name, additional_info)
+    return discord_alerter.send_error_alert(
+        error, context, episode_name, podcast_name, additional_info
+    )
 
 
-def send_processing_alert(message_type, podcast_name="", episode_name="", additional_info=None):
+def send_processing_alert(
+    message_type, podcast_name="", episode_name="", additional_info=None
+):
     """
     Convenience function to send processing alerts
     """
-    return discord_alerter.send_processing_alert(message_type, podcast_name, episode_name, additional_info)
+    return discord_alerter.send_processing_alert(
+        message_type, podcast_name, episode_name, additional_info
+    )
+
+def send_training_data_alert(
+    message_type, podcast_name="", episode_name="", additional_info=None
+):
+    """
+    Convenience function to send training data alerts
+    """
+    return discord_alerter.send_processing_alert(
+        message_type, podcast_name, episode_name, additional_info, alert_title="TRAINING DATA"
+    )

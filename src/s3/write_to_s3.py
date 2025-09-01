@@ -22,8 +22,8 @@ def upload_file_to_s3(bucket_name, s3_key, local_path):
             additional_info={
                 "bucket_name": bucket_name,
                 "s3_key": s3_key,
-                "local_path": local_path
-            }
+                "local_path": local_path,
+            },
         )
         raise e
 
@@ -53,7 +53,7 @@ def upload_file_to_s3(bucket_name, s3_key, local_path):
                 "bucket_name": bucket_name,
                 "s3_key": s3_key,
                 "local_path": local_path,
-                "content_type": content_type
-            }
+                "content_type": content_type,
+            },
         )
         raise e

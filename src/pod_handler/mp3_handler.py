@@ -6,7 +6,7 @@ import json
 from src.pod_handler.download_mp3 import download_episode
 
 # from src.pod_handler.mp3_converter import remove_ads_from_audio
-from src.pod_handler.mp3_converter_whisperx import remove_ads_from_audio
+from src.pod_handler.mp3_converter import remove_ads_from_audio
 from src.config.constants import *
 from src.logger.logger_setup import logger
 from src.s3.write_to_s3 import upload_file_to_s3
@@ -45,8 +45,13 @@ def mp3_handler(
     episode_data={},
     json_data={},
 ):
-    episode_name = getattr(episode_data, "name", "") or json_data.get("episodes", [{}])[0].get("name", "Unknown Episode") if json_data else "Unknown Episode"
-    
+    episode_name = (
+        getattr(episode_data, "name", "")
+        or json_data.get("episodes", [{}])[0].get("name", "Unknown Episode")
+        if json_data
+        else "Unknown Episode"
+    )
+
     try:
         # Load the MP3 file
         start_time = time.time()
@@ -54,7 +59,7 @@ def mp3_handler(
         logger.info(f"Removing ads from episode and storing in Spaces:: {podcast_name}")
 
         saved_episode_name = f"{hashkey}.mp3"
-        
+
         try:
             file_size, local_path = download_episode(
                 saved_episode_name, audio_url, DOWNLOAD_DIR
@@ -68,8 +73,8 @@ def mp3_handler(
                 additional_info={
                     "audio_url": audio_url,
                     "hashkey": hashkey,
-                    "saved_episode_name": saved_episode_name
-                }
+                    "saved_episode_name": saved_episode_name,
+                },
             )
             raise e
 
@@ -87,8 +92,10 @@ def mp3_handler(
                 additional_info={
                     "hashkey": hashkey,
                     "audio_file": get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
-                    "podcast_description_length": len(podcast_description) if podcast_description else 0
-                }
+                    "podcast_description_length": (
+                        len(podcast_description) if podcast_description else 0
+                    ),
+                },
             )
             raise e
 
@@ -122,8 +129,8 @@ def mp3_handler(
                     "bucket": BUCKET_NAME,
                     "s3_key": episode_s3_key,
                     "local_path": mp3_output_path,
-                    "hashkey": hashkey
-                }
+                    "hashkey": hashkey,
+                },
             )
             raise e
 
@@ -167,8 +174,8 @@ def mp3_handler(
                     "hashkey": hashkey,
                     "s3_location": s3_location,
                     "podcast_length": podcast_length,
-                    "file_size": file_size
-                }
+                    "file_size": file_size,
+                },
             )
             raise e
 
@@ -185,10 +192,7 @@ def mp3_handler(
                 context="Failed to update status to COMPLETED in mp3_handler",
                 episode_name=episode_name,
                 podcast_name=podcast_name,
-                additional_info={
-                    "hashkey": hashkey,
-                    "new_status": "COMPLETED"
-                }
+                additional_info={"hashkey": hashkey, "new_status": "COMPLETED"},
             )
             raise e
 
@@ -217,7 +221,9 @@ def mp3_handler(
 
         # Clean up MP3 and WAV files in the downloads directory
         audio_files = [
-            f for f in os.listdir(DOWNLOAD_DIR) if f.endswith(".mp3") or f.endswith(".wav")
+            f
+            for f in os.listdir(DOWNLOAD_DIR)
+            if f.endswith(".mp3") or f.endswith(".wav")
         ]
         logger.info(f"Removing local audio files: {audio_files}")
         for audio_file in audio_files:
@@ -241,7 +247,7 @@ def mp3_handler(
                 logger.error(f"Error removing local audio file: {e}")
 
         return podcast_length
-        
+
     except Exception as e:
         logger.error(f"Critical error in mp3_handler: {e}")
         send_error_alert(
@@ -252,8 +258,8 @@ def mp3_handler(
             additional_info={
                 "hashkey": hashkey,
                 "audio_url": audio_url,
-                "cdn_url": cdn_url
-            }
+                "cdn_url": cdn_url,
+            },
         )
         # Update status to FAILED before raising
         try:

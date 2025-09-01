@@ -9,23 +9,26 @@ client = boto3.client("autoscaling", "us-east-1")
 def terminate_instance_on_error():
     """Terminate EC2 instance when critical errors occur"""
     try:
-        logger.error("Critical error detected - terminating EC2 instance to prevent runaway costs")
-        
+        logger.error(
+            "Critical error detected - terminating EC2 instance to prevent runaway costs"
+        )
+
         # Use lazy import to avoid circular dependency
         try:
             from src.alerts.discord_alerts import send_error_alert
+
             # Send Discord alert about the critical error
             send_error_alert(
                 error="Critical error detected - instance termination initiated",
                 context="Critical error in terminate_instance_on_error",
                 additional_info={
                     "action": "Instance termination initiated",
-                    "reason": "Prevent runaway costs due to critical error"
-                }
+                    "reason": "Prevent runaway costs due to critical error",
+                },
             )
         except ImportError:
             logger.warning("Could not import Discord alerts, skipping alert")
-        
+
         instance_id = get_instance_id()
         if instance_id:
             ec2_client = boto3.client("ec2", region_name="us-east-1")
@@ -33,21 +36,20 @@ def terminate_instance_on_error():
             logger.info(f"EC2 termination initiated for instance: {instance_id}")
         else:
             logger.error("Cannot get instance ID - falling back to container exit")
-            
+
     except Exception as e:
         logger.error(f"EC2 termination failed: {e} - falling back to container exit")
         try:
             from src.alerts.discord_alerts import send_error_alert
+
             send_error_alert(
                 error=e,
                 context="EC2 termination failed in terminate_instance_on_error",
-                additional_info={
-                    "fallback_action": "Container exit"
-                }
+                additional_info={"fallback_action": "Container exit"},
             )
         except ImportError:
             logger.warning("Could not import Discord alerts, skipping alert")
-    
+
     # If we reach here, either EC2 termination failed or we're being extra safe
     # Exit container so monitoring script can detect and terminate instance
     logger.info("Exiting container - monitoring script will terminate instance")

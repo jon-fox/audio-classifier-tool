@@ -87,8 +87,8 @@ def insert_podcast_metadata(**kwargs):
                 "episode_hash": kwargs.get("id", "unknown"),
                 "table_name": "PodcastS3Metadata",
                 "podcast_name": kwargs.get("podcast_name", "unknown"),
-                "episode_name": kwargs.get("episode_name", "unknown")
-            }
+                "episode_name": kwargs.get("episode_name", "unknown"),
+            },
         )
 
 
@@ -152,8 +152,8 @@ def insert_message(
                 "episode_hash": episode_hash,
                 "message_id": message_id,
                 "status": status,
-                "table_name": "PodcastS3Metadata"
-            }
+                "table_name": "PodcastS3Metadata",
+            },
         )
 
 
@@ -188,6 +188,6 @@ def update_status(episode_hash, new_status):
             additional_info={
                 "episode_hash": episode_hash,
                 "new_status": new_status,
-                "table_name": "PodcastS3Metadata"
-            }
+                "table_name": "PodcastS3Metadata",
+            },
         )

@@ -6,7 +6,11 @@ import src.db_utils.write_to_db as write_to_db
 import boto3
 import sys
 from datetime import datetime
-from src.metadata.utils import is_terminating, get_instance_id, terminate_instance_on_error
+from src.metadata.utils import (
+    is_terminating,
+    get_instance_id,
+    terminate_instance_on_error,
+)
 from src.alerts.discord_alerts import send_error_alert, send_processing_alert
 
 # uvicorn app:app --reload
@@ -41,7 +45,7 @@ def prepare_mp3_file(
     logger.info(f"Fetching MP3 file::{audio_url}")
     s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3"  # HACK may shorten this later
     cdn_url = f"{CDN_BASE_URL}/{s3_path}"
-    
+
     try:
         processed_podcast_length = mp3_handler(
             podcast_name, podcast_description, cdn_url, episode_hash, audio_url
@@ -58,13 +62,17 @@ def prepare_mp3_file(
         send_error_alert(
             error=e,
             context="MP3 file processing failed in prepare_mp3_file",
-            episode_name=json_data.get("episodes", [{}])[0].get("name", "Unknown Episode") if json_data else "Unknown Episode",
+            episode_name=(
+                json_data.get("episodes", [{}])[0].get("name", "Unknown Episode")
+                if json_data
+                else "Unknown Episode"
+            ),
             podcast_name=podcast_name,
             additional_info={
                 "audio_url": audio_url,
                 "episode_hash": episode_hash,
-                "cdn_url": cdn_url
-            }
+                "cdn_url": cdn_url,
+            },
         )
         raise e
 
@@ -166,7 +174,7 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
         logger.info(
             f"Processed podcast length::{processed_podcast_length}, CDN URL::{cdn_url}"
         )
-        
+
         if payload.get("add_to_rss_feed", False):
             logger.info(
                 f"Adding episode to Rss feed::{episode_hash}, invoking rss feed update lambda"
@@ -177,7 +185,7 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
             logger.info(
                 f"RSS Feed Update Lambda invoked for episode {podcast_name}, and hash {episode_hash}"
             )
-        
+
         # Send success alert
         send_processing_alert(
             message_type="success",
@@ -187,8 +195,10 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
                 "Episode Hash": episode_hash,
                 "Processed Length": f"{processed_podcast_length} seconds",
                 "CDN URL": cdn_url,
-                "Added to RSS": "Yes" if payload.get("add_to_rss_feed", False) else "No"
-            }
+                "Added to RSS": (
+                    "Yes" if payload.get("add_to_rss_feed", False) else "No"
+                ),
+            },
         )
     else:
         logger.info("No payload received")
@@ -197,15 +207,15 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
 def process_message(message_body, receipt_handle, message_id):
     episode_name = "Unknown Episode"
     podcast_name = "Unknown Podcast"
-    
+
     try:
         payload = json.loads(message_body)
         logger.info(f"Processing payload: {payload}")
-        
+
         # Extract episode info for error reporting
         episode_name = payload.get("episode_name", "Unknown Episode")
         podcast_name = payload.get("podcast_name", "Unknown Podcast")
-        
+
         # Send processing started alert
         send_processing_alert(
             message_type="started",
@@ -214,10 +224,10 @@ def process_message(message_body, receipt_handle, message_id):
             additional_info={
                 "Message ID": message_id,
                 "Audio URL": payload.get("audio_url", "Unknown"),
-                "Add to RSS": "Yes" if payload.get("add_to_rss_feed", False) else "No"
-            }
+                "Add to RSS": "Yes" if payload.get("add_to_rss_feed", False) else "No",
+            },
         )
-        
+
         process_payload(payload, receipt_handle, message_id)
         logger.info(f"Processed payload: {payload}")
     except json.JSONDecodeError as e:
@@ -230,8 +240,12 @@ def process_message(message_body, receipt_handle, message_id):
             additional_info={
                 "message_id": message_id,
                 "receipt_handle": receipt_handle,
-                "message_body": message_body[:500] + "..." if len(message_body) > 500 else message_body
-            }
+                "message_body": (
+                    message_body[:500] + "..."
+                    if len(message_body) > 500
+                    else message_body
+                ),
+            },
         )
         # Mark as failed in database if possible
         terminate_instance_on_error()
@@ -244,8 +258,8 @@ def process_message(message_body, receipt_handle, message_id):
             podcast_name=podcast_name,
             additional_info={
                 "message_id": message_id,
-                "receipt_handle": receipt_handle
-            }
+                "receipt_handle": receipt_handle,
+            },
         )
         # Send additional error alert with message payload
         send_error_alert(
@@ -256,18 +270,20 @@ def process_message(message_body, receipt_handle, message_id):
             additional_info={
                 "message_id": message_id,
                 "receipt_handle": receipt_handle,
-                "message_body": message_body[:500] + "..." if len(message_body) > 500 else message_body
-            }
+                "message_body": (
+                    message_body[:500] + "..."
+                    if len(message_body) > 500
+                    else message_body
+                ),
+            },
         )
         # Delete the message from the queue
         try:
-            sqs_client.delete_message(
-                QueueUrl=SQS_URL, ReceiptHandle=receipt_handle
-            )
+            sqs_client.delete_message(QueueUrl=SQS_URL, ReceiptHandle=receipt_handle)
             logger.info("Failed message deleted from the queue")
         except Exception as delete_error:
             logger.error(f"Failed to delete message from queue: {delete_error}")
-        # Mark as failed in database if possible  
+        # Mark as failed in database if possible
         terminate_instance_on_error()
 
 
@@ -313,8 +329,8 @@ def poll_sqs():
             context="Critical error in poll_sqs function",
             additional_info={
                 "sqs_url": SQS_URL,
-                "processing_message": processing_message
-            }
+                "processing_message": processing_message,
+            },
         )
         terminate_instance_on_error()
         sys.exit(1)
