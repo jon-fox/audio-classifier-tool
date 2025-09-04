@@ -126,7 +126,12 @@ class DiscordAlerter:
             return False
 
     def send_processing_alert(
-        self, message_type, podcast_name="", episode_name="", additional_info=None, alert_title="PROCESSING"
+        self,
+        message_type,
+        podcast_name="",
+        episode_name="",
+        additional_info=None,
+        alert_title="PROCESSING",
     ):
         """
         Send processing status alerts (success, start, etc.)
@@ -209,6 +214,7 @@ def send_processing_alert(
         message_type, podcast_name, episode_name, additional_info
     )
 
+
 def send_training_data_alert(
     message_type, podcast_name="", episode_name="", additional_info=None
 ):
@@ -216,5 +222,9 @@ def send_training_data_alert(
     Convenience function to send training data alerts
     """
     return discord_alerter.send_processing_alert(
-        message_type, podcast_name, episode_name, additional_info, alert_title="TRAINING DATA"
+        message_type,
+        podcast_name,
+        episode_name,
+        additional_info,
+        alert_title="TRAINING DATA",
     )

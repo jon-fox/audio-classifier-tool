@@ -303,9 +303,7 @@ def find_ad_timestamps(transcript):
 
         # high_certainty = any(company.lower() in text for company in ad_companies)
 
-        contains_ad = any(
-            pattern.search(text) for pattern in ad_keywords_compiled
-        )
+        contains_ad = any(pattern.search(text) for pattern in ad_keywords_compiled)
 
         if contains_ad:
             start = max(0, t_segment.start - START_AD_BUFFER)
@@ -659,9 +657,7 @@ def remove_ads_from_audio(audio_file, podcast_description):
         logger.info(f"Using {model_pool.qsize()} models for processing")
         # Submit all segments to the executor
         future_to_segment = {
-            executor.submit(
-                process_audio_segment, i, segments[i], len(segments)
-            ): i
+            executor.submit(process_audio_segment, i, segments[i], len(segments)): i
             for i in range(len(segments))
         }
 
