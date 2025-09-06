@@ -460,7 +460,8 @@ def initialize_model_pool(device="cuda"):
 
 def process_audio_segment(index, audio_segment, total_segments):
     """
-    Transcribe a single audio segment.
+    Transcribe a single audio segment and sends to find ad timestamps if not in first 10 min
+    or last 10 min segment. Reason being is that ads are most likely present in the first/final 10 minutes.
 
     Args:
         index (int): The index of the audio segment.
