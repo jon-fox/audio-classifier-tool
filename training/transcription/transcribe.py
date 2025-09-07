@@ -392,12 +392,6 @@ def extract_segments(segments, start_time, end_time):
     #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
     return extracted_segments
 
-
-# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
-# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
-# python pod_handler/mp3_converter.py
-# python mp3_converter.py --device cuda
-
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Process audio segments.")
 parser.add_argument(
@@ -465,7 +459,7 @@ def process_audio_segment(index, audio_segment, total_segments):
 
     Removes the ads in the audio segment in return by using the start/end timestamps to cut out the 
     potential ad audio.
-    
+
     Args:
         index (int): The index of the audio segment.
         audio_segment (AudioSegment): The audio segment to process.
