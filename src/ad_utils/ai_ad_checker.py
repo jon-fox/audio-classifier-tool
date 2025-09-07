@@ -488,18 +488,16 @@ def extract_sponsors(response_content):
 def fetch_sponsors(podcast_description):
     logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
     try:
-        response = client.chat.completions.create(
+        response = client.responses.create(
             model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": sponsor_instructions},
-                {"role": "user", "content": podcast_description},
-            ],
+            instructions=sponsor_instructions,
+            input=podcast_description,
             temperature=0,
         )
         logger.info(f"Response: {response}")
 
         # Extract and print the list from the response
-        return extract_sponsors(response.choices[0].message.content.strip())
+        return extract_sponsors(response.output_text.strip())
     except Exception as e:
         logger.error(f"Error fetching sponsors: {e}")
         return []

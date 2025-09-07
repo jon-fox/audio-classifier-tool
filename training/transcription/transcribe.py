@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import traceback
 import argparse
 import threading
@@ -12,9 +13,16 @@ from pydub import AudioSegment
 from faster_whisper import WhisperModel
 
 from src.config.constants import *
+from src.ad_utils.ai_ad_checker import (
+    get_run_output,
+    fetch_sponsors,
+)
 from src.logger.logger_setup import logger
 from src.alerts.discord_alerts import send_error_alert
+import threading
 
+# import whisper
+# import re
 
 # buffers to try and capture ad time after keyword is mentioned
 # be careful with these, results in larger token cost to ai model
@@ -23,8 +31,7 @@ END_AD_BUFFER = 45
 
 MINIMUM_AD_SKIP_TIME = 15  # Minimum time to skip an ad segment
 
-# lock = threading.Lock()
-lock = threading.RLock()
+# lock = threading.RLock()
 
 ad_keywords = [
     "signing up",
@@ -258,9 +265,33 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 cwd = os.getcwd()
 logger.info(f"Current working directory: {cwd}")
 
+# Construct the absolute path
+# file_path = os.path.join(cwd, ADS_TXT_PATH)
+# logger.info(f'Absolute file path: {file_path}')
+
+# with open(ADS_TXT_PATH, 'r') as file:
+#     ad_companies = {line.strip().lower() for line in file}
+
+
+def update_ad_keywords_with_sponsors(podcast_description):
+    if podcast_description:
+        logger.info(f"Podcast description: {podcast_description}")
+        try:
+            sponsors = fetch_sponsors(podcast_description)
+            if isinstance(sponsors, list):
+                logger.info(f"Podcast sponsors: {sponsors}")
+                return sponsors
+            else:
+                logger.error("Fetched sponsors is not a list")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching or extending sponsors: {e}")
+            return []
+    return []
+
 
 # Find positions of ad-related keywords in the transcription
-def find_ad_timestamps(transcript):
+def find_ad_timestamps(transcript, sponsors):
     """
     Find the timestamps of ad segments in a transcription.
 
@@ -275,7 +306,12 @@ def find_ad_timestamps(transcript):
 
     for t_segment in transcript:
         text = t_segment.text.lower()
-        contains_ad = any(pattern.search(text) for pattern in ad_keywords_compiled)
+
+        # high_certainty = any(company.lower() in text for company in ad_companies)
+
+        contains_ad = any(company in text for company in sponsors) or any(
+            pattern.search(text) for pattern in ad_keywords_compiled
+        )
 
         if contains_ad:
             start = max(0, t_segment.start - START_AD_BUFFER)
@@ -358,6 +394,11 @@ def extract_segments(segments, start_time, end_time):
     return extracted_segments
 
 
+# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
+# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
+# python pod_handler/mp3_converter.py
+# python mp3_converter.py --device cuda
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Process audio segments.")
 parser.add_argument(
@@ -418,19 +459,7 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment, total_segments):
-    """
-    Transcribe a single audio segment and sends to find ad timestamps if not in first 10 min
-    or last 10 min segment. Reason being is that ads are most likely present in the first/final 10 minutes.
-
-    Removes the ads in the audio segment in return by using the start/end timestamps to cut out the
-    potential ad audio.
-
-    Args:
-        index (int): The index of the audio segment.
-        audio_segment (AudioSegment): The audio segment to process.
-        total_segments (int): The total number of audio segments.
-    """
+def process_audio_segment(index, audio_segment, total_segments, sponsors):
     try:
         # TODO lets try using openai's model api call here
         # model = whisper.load_model("tiny", device="cuda")
@@ -466,7 +495,7 @@ def process_audio_segment(index, audio_segment, total_segments):
             )
             logger.info("Searching the last segment because it is likely to have ads")
         else:
-            min_ms, max_ms = find_ad_timestamps(result)
+            min_ms, max_ms = find_ad_timestamps(result, sponsors)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -540,7 +569,13 @@ def process_audio_segment(index, audio_segment, total_segments):
             )
             return audio_segment
 
-        # markers
+        # TODO grabbing the ad segment TEXT and saving it to a file
+        # TODO honestly we may not even need this at all, as giving the transcript json file appears to be enough
+        # with open(f"transcript_{index}_ad_text.txt", "w", encoding="utf-8") as file:
+        #     for segment in segments:
+        #         file.write(segment['text'] + '\n')
+        ################################################################
+
         start_ads_ms = round(min_ms * 1000)  # Convert minutes to milliseconds
         end_ads_ms = round(max_ms * 1000)
 
@@ -565,72 +600,17 @@ def process_audio_segment(index, audio_segment, total_segments):
         return audio_before_ad + audio_after_ad
 
 
-def process_episode(audio_file):
+def remove_ads_from_audio(audio_file, podcast_description):
     """
-    Process a single episode: transcribe, extract labels.
+    Removes ads from an audio file.
 
-    Returns:
-        dict: Data for NDJSON
-    """
-    wav_file = f"temp_{os.path.basename(audio_file)}.wav"
+    This function takes an MP3 audio file as input, splits it into 10-minute segments,
+    transcribes each segment, identifies ad timestamps in the transcription, and removes
+    the corresponding audio segments containing the ads. The resulting audio file without
+    ads is saved as "finished_audio_without_ads.mp3".
 
-    audio = AudioSegment.from_mp3(audio_file)
-    audio.export(wav_file, format="wav")
-
-    # Load model (for parallel, perhaps share model, but for simplicity, load per worker)
-    device = check_cuda()
-    model_download_path = os.path.join(MODEL_DOWNLOAD_PATH)
-    model = WhisperModel(MODEL_SIZE, download_root=model_download_path, device=device)
-
-    # Transcribe
-    result_generator, info = model.transcribe(wav_file, language="en")
-    segments = list(result_generator)
-
-    # Build transcript
-    transcript = " ".join(segment.text for segment in segments)
-
-    # Find ad timestamps
-    ad_labels = find_ad_timestamps(segments)
-
-    # Episode ID
-    episode_id = os.path.splitext(os.path.basename(audio_file))[0]
-
-    # Clean up
-    os.remove(wav_file)
-
-    return {"episode_id": episode_id, "transcript": transcript, "ad_labels": ad_labels}
-
-
-def writer_thread(queue, output_file, compress):
-    """
-    Single writer thread to write to NDJSON.
-    """
-    temp_file = output_file + ".tmp"
-    with open(temp_file, "w", encoding="utf-8") as f:
-        while True:
-            data = queue.get()
-            if data is None:  # Sentinel to stop
-                break
-            json.dump(data, f, ensure_ascii=False)
-            f.write("\n")
-            queue.task_done()
-
-    # Atomic rename
-    os.rename(temp_file, output_file)
-
-    # Compress if needed
-    if compress:
-        with open(output_file, "r", encoding="utf-8") as f_in:
-            with gzip.open(output_file + ".gz", "wt", encoding="utf-8") as f_out:
-                f_out.write(f_in.read())
-        os.remove(output_file)
-
-
-def transcribe_for_training(
-    audio_files, output_file="training_data.jsonl", compress=False, max_workers=4
-):
-    """
-    Transcribes multiple audio files in parallel, extracts ad labels, outputs to NDJSON.
+    Note: This function requires the 'whisper' library and the 'AudioSegment' class from
+    the 'pydub' library.
 
     Args:
         audio_files (list): List of paths to audio files.
@@ -641,27 +621,87 @@ def transcribe_for_training(
     Returns:
         None
     """
-    queue = Queue()
+    wav_file = "result.wav"
 
-    # Start writer thread
-    writer = threading.Thread(target=writer_thread, args=(queue, output_file, compress))
-    writer.start()
+    # model = whisper.load_model("tiny", device="cpu")
+    # model = whisper.load_model("tiny", device="cuda")
+    # model = whisper.load_model("medium", device="cuda")
 
-    # Process episodes in parallel
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(process_episode, audio_file) for audio_file in audio_files
-        ]
-        for future in as_completed(futures):
+    sponsors = update_ad_keywords_with_sponsors(podcast_description)
+
+    audio = AudioSegment.from_mp3(audio_file)
+    original_duration = len(audio) / 1000
+
+    audio.export(wav_file, format="wav")
+
+    # Load the WAV file
+    audio = AudioSegment.from_wav(wav_file)
+
+    # Duration of each segment in milliseconds (10 minutes)
+    segment_duration_ms = 10 * 60 * 1000
+
+    # Duration of audio in milliseconds
+    duration_ms = len(audio)
+
+    # Split audio into 10-minute segments
+    segments = [
+        audio[i : i + segment_duration_ms]
+        for i in range(0, duration_ms, segment_duration_ms)
+    ]
+
+    finished_audio_without_ads = AudioSegment.empty()
+    # if not os.path.exists("transcript.json"):
+
+    logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
+    initialize_model_pool(check_cuda())
+
+    # Using ThreadPoolExecutor to process each segment
+    with concurrent.futures.ThreadPoolExecutor(
+        max_workers=model_pool.qsize()
+    ) as executor:
+        logger.info(f"Using {model_pool.qsize()} models for processing")
+        # Submit all segments to the executor
+        future_to_segment = {
+            executor.submit(
+                process_audio_segment, i, segments[i], len(segments), sponsors
+            ): i
+            for i in range(len(segments))
+        }
+
+        # Collect results as they complete
+        results = []
+        for future in concurrent.futures.as_completed(future_to_segment):
+            segment_index = future_to_segment[future]
+            logger.info(
+                f"Processing segment for segment index {segment_index}, for transcript_{segment_index}_logging.json"
+            )
             try:
-                data = future.result()
-                queue.put(data)
+                result = future.result()
+                results.append(
+                    (segment_index, result)
+                )  # Store results along with their original index
             except Exception as exc:
                 logger.error(f"Episode processing failed: {exc}")
                 logger.error(traceback.format_exc())
+        # executor.shutdown(wait=True)
+    logger.info(f"Finished processing audio segments, exporting finished mp3")
+    results.sort(key=lambda x: x[0])
+    # concatenate the segments without ads
+    finished_audio_without_ads = sum(x[1] for x in results)
+    # Save the result
+    finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
 
-    # Stop writer
-    queue.put(None)
-    writer.join()
+    output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
 
-    logger.info(f"Training data written to {output_file}")
+    # Return the duration of the finished audio in seconds
+    logger.info(f"Audio with ads duration: {original_duration} seconds")
+    logger.info(
+        f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds"
+    )
+    return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
+
+
+podcast_description = """<p>Today we’ll hear about: </p><ul>\n<li>A young owner looking for help establishing processes in his fast- growing business </li>\n<li>A woman looking to fire an employee who won’t see it coming </li>\n<li>Dave Ramsey’s take on Home Depot requiring corporate employees to work in retail stores </li>\n<li>A business owner looking for advice on profit sharing with her team </li>\n</ul><p> </p><p><strong>Next Steps</strong> </p><ul>\n<li>📞 Have a question for the show? Call 844-944-1070 or send us a message: <a href=\"https://ter.li/ask-us\">https://ter.li/ask-us</a> </li>\n<li>📚 Learn about the EntreLeadership System: <a href=\"https://ter.li/system-p\">https://ter.li/system-p</a> </li>\n<li>💻 Get EntreLeadership Elite for your business: <a href=\"https://ter.li/elite-p\">https://ter.li/elite-p</a> </li>\n<li>✉️ Sign up to receive tactical tools, advice and resources in your inbox every week: <a href=\"https://ter.li/enl\">https://ter.li/enl</a> </li>\n<li>🏢 Attend EntreLeadership Summit: <a href=\"https://ter.li/summit\">https://ter.li/summit</a>  </li>\n<li>🎤 Attend EntreLeadership Master Series: <a href=\"https://ter.li/masterseries\">https://ter.li/masterseries</a>  </li>\n</ul><p> </p><p><strong>Offers From Today's Sponsors</strong> </p><ul>\n<li>💼 Go to<a href=\"https://www.belaysolutions.com/Entreleadership\"> <strong>Belay Solutions</strong></a> or text ENTRE to 55123 for their free resource! </li>\n<li>💻 Visit<a href=\"https://www.netsuite.com/Ramsey\"> <strong>NetSuite</strong></a> today to learn more </li>\n<li>🧾 Visit<a href=\"https://www.payority.com/entreleadership\"> </a><a href=\"https://www.payority.com/entreleadership\"><strong>Payority</strong></a> for a free consultation! </li>\n<li>📝 Use code entre15 to get 15% off your first year of <a href=\"https://www.trainual.com/entre\"><strong>Trainual</strong></a> </li>\n</ul><p> </p><p><strong>Listen to More From Ramsey Network</strong> </p><p>🎙️ <a href=\"https://ter.li/gpny1a\">The Ramsey Show</a> </p><p>💸 <a href=\"https://ter.li/430qk2\">The Ramsey Show Highlights</a> </p><p><strong>🧠</strong> <a href=\"https://ter.li/w9syza\">The Dr. John Delony Show</a> </p><p>🍸 <a href=\"https://ter.li/k3waa1\">Smart Money Happy Hour</a> </p><p>💡 <a href=\"https://ter.li/j3ahu7\">The Rachel Cruze Show</a> </p><p>💰 <a href=\"https://ter.li/99j2kb\">George Kamel</a> </p><p>💼 <a href=\"https://ter.li/puh2qh\">The Ken Coleman Show</a> </p><p> </p><p><a href=\"https://www.megaphone.fm/adchoices\">Learn More About Your Ad Choices</a>  </p><p><a href=\"https://www.ramseysolutions.com/company/policies/privacy-policy\">Ramsey Solutions Privacy Policy</a> </p>"""
+
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/potp1201art19.mp3", podcast_description)
