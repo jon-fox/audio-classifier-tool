@@ -5,6 +5,7 @@ BUCKET_PATH = "/training/transcripts/"
 
 s3_client = boto3.client("s3")
 
+
 def upload_to_s3(file_path: str, podcast_path: str) -> None:
     """
     Upload a file to an S3 bucket.

@@ -5,6 +5,9 @@ downloads/
 local_models/
 certs/
 
+# training
+training_data.*
+
 # Ignore mp3 files
 *.mp3
 *.wav

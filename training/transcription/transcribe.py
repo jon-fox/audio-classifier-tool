@@ -1,19 +1,19 @@
-from pydub import AudioSegment
-from faster_whisper import WhisperModel
-import concurrent.futures
 import json
-
-# import json_tricks
 import os
 import re
 import traceback
 import argparse
+import threading
+import gzip
 from queue import Queue
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from pydub import AudioSegment
+from faster_whisper import WhisperModel
+
 from src.config.constants import *
 from src.logger.logger_setup import logger
 from src.alerts.discord_alerts import send_error_alert
-from training.aws_utils.s3_upload import upload_to_s3
-import threading
 
 
 # buffers to try and capture ad time after keyword is mentioned
@@ -265,76 +265,41 @@ def find_ad_timestamps(transcript):
     Find the timestamps of ad segments in a transcription.
 
     Args:
-        transcription (dict): The transcription data containing segments.
-        ad_keywords (list): A list of keywords to search for in the transcription.
-        ad_companies (list): A list of company names to search for in the transcription.
+        transcript (list): List of segment objects.
 
     Returns:
-        tuple: A tuple containing the ad timestamps dictionary,
-        the minimum start time, and the maximum end time.
-
-    The ad timestamps dictionary has the following structure:
-    {
-        'keyword1': [[start1, end1], [start2, end2], ...],
-        'keyword2': [[start1, end1], [start2, end2], ...],
-        ...
-    }
-    The minimum start time and maximum end time represent
-    the overall time range of the ad segments found.
+        list: List of [start, end] in seconds for ad segments.
     """
-
-    # Assuming transcript is a dictionary
-    # keys = list(transcript[0].keys())
-    # logger.info("############################################")
-    # logger.info(f"First few of transcript keys: {keys[:1]}")
-    # logger.info(f"Transcript: {transcript}")
-    # logger.info("############################################")
-
-    min_ms = float("inf")  # Positive infinity
-    max_ms = float("-inf")  # Negative infinity
-
-    # for logging
+    ad_segments = []
     current_block = None
 
-    # TODO need to capture the words that kicked off the ad segment
     for t_segment in transcript:
         text = t_segment.text.lower()
-
-        # high_certainty = any(company.lower() in text for company in ad_companies)
-
         contains_ad = any(pattern.search(text) for pattern in ad_keywords_compiled)
 
         if contains_ad:
             start = max(0, t_segment.start - START_AD_BUFFER)
             end = t_segment.end + END_AD_BUFFER
 
-            # logging ad segment keywords to file
-            # with open("ad_keywords.txt", "a") as file:
-            #     file.write(text + '\n' + f'{start} - {end}\n\n')
-
             if current_block is None:
                 current_block = [start, end]
             else:
-                # Extend the current ad block if overlapping or adjacent within buffer
                 if start <= current_block[1]:
                     current_block[1] = max(current_block[1], end)
                 else:
-                    # Update overall min and max if current block is finalized
-                    min_ms = min(min_ms, current_block[0])
-                    max_ms = max(max_ms, current_block[1])
+                    ad_segments.append(
+                        [current_block[0] / 1000, current_block[1] / 1000]
+                    )  # to seconds
                     current_block = [start, end]
         else:
             if current_block is not None:
-                # Update overall min and max if moving out of ad segment
-                min_ms = min(min_ms, current_block[0])
-                max_ms = max(max_ms, current_block[1])
+                ad_segments.append([current_block[0] / 1000, current_block[1] / 1000])
                 current_block = None
 
-    # Final update at the end of the transcript
     if current_block is not None:
-        min_ms = min(min_ms, current_block[0])
-        max_ms = max(max_ms, current_block[1])
-    return min_ms, max_ms
+        ad_segments.append([current_block[0] / 1000, current_block[1] / 1000])
+
+    return ad_segments
 
 
 def extract_segments(segments, start_time, end_time):
@@ -391,6 +356,7 @@ def extract_segments(segments, start_time, end_time):
     # for segment in segments:
     #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
     return extracted_segments
+
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Process audio segments.")
@@ -457,7 +423,7 @@ def process_audio_segment(index, audio_segment, total_segments):
     Transcribe a single audio segment and sends to find ad timestamps if not in first 10 min
     or last 10 min segment. Reason being is that ads are most likely present in the first/final 10 minutes.
 
-    Removes the ads in the audio segment in return by using the start/end timestamps to cut out the 
+    Removes the ads in the audio segment in return by using the start/end timestamps to cut out the
     potential ad audio.
 
     Args:
@@ -500,7 +466,7 @@ def process_audio_segment(index, audio_segment, total_segments):
             )
             logger.info("Searching the last segment because it is likely to have ads")
         else:
-            min_ms, max_ms =  find_ad_timestamps(result)
+            min_ms, max_ms = find_ad_timestamps(result)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -599,99 +565,103 @@ def process_audio_segment(index, audio_segment, total_segments):
         return audio_before_ad + audio_after_ad
 
 
-def transcribe_and_label_audio(audio_file):
+def process_episode(audio_file):
     """
-    Transcribes and labels audio segments.
+    Process a single episode: transcribe, extract labels.
 
-    This function takes an MP3 audio file as input, splits it into 10-minute segments,
-    transcribes each segment, identifies ad timestamps in the transcription, and removes
-    the corresponding audio segments containing the ads. The resulting audio file without
-    ads is saved as "finished_audio_without_ads.mp3".
+    Returns:
+        dict: Data for NDJSON
+    """
+    wav_file = f"temp_{os.path.basename(audio_file)}.wav"
 
-    Note: This function requires the 'whisper' library and the 'AudioSegment' class from
-    the 'pydub' library.
+    audio = AudioSegment.from_mp3(audio_file)
+    audio.export(wav_file, format="wav")
+
+    # Load model (for parallel, perhaps share model, but for simplicity, load per worker)
+    device = check_cuda()
+    model_download_path = os.path.join(MODEL_DOWNLOAD_PATH)
+    model = WhisperModel(MODEL_SIZE, download_root=model_download_path, device=device)
+
+    # Transcribe
+    result_generator, info = model.transcribe(wav_file, language="en")
+    segments = list(result_generator)
+
+    # Build transcript
+    transcript = " ".join(segment.text for segment in segments)
+
+    # Find ad timestamps
+    ad_labels = find_ad_timestamps(segments)
+
+    # Episode ID
+    episode_id = os.path.splitext(os.path.basename(audio_file))[0]
+
+    # Clean up
+    os.remove(wav_file)
+
+    return {"episode_id": episode_id, "transcript": transcript, "ad_labels": ad_labels}
+
+
+def writer_thread(queue, output_file, compress):
+    """
+    Single writer thread to write to NDJSON.
+    """
+    temp_file = output_file + ".tmp"
+    with open(temp_file, "w", encoding="utf-8") as f:
+        while True:
+            data = queue.get()
+            if data is None:  # Sentinel to stop
+                break
+            json.dump(data, f, ensure_ascii=False)
+            f.write("\n")
+            queue.task_done()
+
+    # Atomic rename
+    os.rename(temp_file, output_file)
+
+    # Compress if needed
+    if compress:
+        with open(output_file, "r", encoding="utf-8") as f_in:
+            with gzip.open(output_file + ".gz", "wt", encoding="utf-8") as f_out:
+                f_out.write(f_in.read())
+        os.remove(output_file)
+
+
+def transcribe_for_training(
+    audio_files, output_file="training_data.jsonl", compress=False, max_workers=4
+):
+    """
+    Transcribes multiple audio files in parallel, extracts ad labels, outputs to NDJSON.
 
     Args:
-        None
+        audio_files (list): List of paths to audio files.
+        output_file (str): Path to output NDJSON file.
+        compress (bool): Whether to compress output.
+        max_workers (int): Number of parallel workers.
 
     Returns:
         None
     """
-    wav_file = "result.wav"
+    queue = Queue()
 
-    # model = whisper.load_model("tiny", device="cpu")
-    # model = whisper.load_model("tiny", device="cuda")
-    # model = whisper.load_model("medium", device="cuda")
+    # Start writer thread
+    writer = threading.Thread(target=writer_thread, args=(queue, output_file, compress))
+    writer.start()
 
-    audio = AudioSegment.from_mp3(audio_file)
-    original_duration = len(audio) / 1000
-
-    audio.export(wav_file, format="wav")
-
-    # Load the WAV file
-    audio = AudioSegment.from_wav(wav_file)
-
-    # Duration of each segment in milliseconds (10 minutes)
-    segment_duration_ms = 10 * 60 * 1000
-
-    # Duration of audio in milliseconds
-    duration_ms = len(audio)
-
-    # Split audio into 10-minute segments
-    segments = [
-        audio[i : i + segment_duration_ms]
-        for i in range(0, duration_ms, segment_duration_ms)
-    ]
-
-    finished_audio_without_ads = AudioSegment.empty()
-    # if not os.path.exists("transcript.json"):
-
-    logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
-    initialize_model_pool(check_cuda())
-
-    # Using ThreadPoolExecutor to process each segment
-    with concurrent.futures.ThreadPoolExecutor(
-        max_workers=model_pool.qsize()
-    ) as executor:
-        logger.info(f"Using {model_pool.qsize()} models for processing")
-        # Submit all segments to the executor
-        future_to_segment = {
-            executor.submit(process_audio_segment, i, segments[i], len(segments)): i
-            for i in range(len(segments))
-        }
-
-        # Collect results as they complete
-        results = []
-        for future in concurrent.futures.as_completed(future_to_segment):
-            segment_index = future_to_segment[future]
-            logger.info(
-                f"Processing segment for segment index {segment_index}, for transcript_{segment_index}_logging.json"
-            )
+    # Process episodes in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(process_episode, audio_file) for audio_file in audio_files
+        ]
+        for future in as_completed(futures):
             try:
-                result = future.result()
-                results.append(
-                    (segment_index, result)
-                )  # Store results along with their original index
+                data = future.result()
+                queue.put(data)
             except Exception as exc:
-                logger.error(f"Segment {segment_index} generated an exception: {exc}")
+                logger.error(f"Episode processing failed: {exc}")
                 logger.error(traceback.format_exc())
-        # executor.shutdown(wait=True)
-    logger.info(f"Finished processing audio segments, exporting finished mp3")
-    results.sort(key=lambda x: x[0])
-    # concatenate the segments without ads
-    finished_audio_without_ads = sum(x[1] for x in results)
-    # Save the result
-    finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
 
-    output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
+    # Stop writer
+    queue.put(None)
+    writer.join()
 
-    # Return the duration of the finished audio in seconds
-    logger.info(f"Audio with ads duration: {original_duration} seconds")
-    logger.info(
-        f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds"
-    )
-    return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
-
-if __name__ == "__main__":
-    
-    transcribe_and_label_audio("downloads/potp1201art19.mp3")
+    logger.info(f"Training data written to {output_file}")
