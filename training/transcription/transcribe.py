@@ -6,15 +6,21 @@ import json
 # import json_tricks
 import os
 import re
+import time
 import traceback
 import argparse
 from queue import Queue
 from src.config.constants import *
+from src.ad_utils.ai_ad_checker import (
+    get_run_output,
+    fetch_sponsors,
+)
 from src.logger.logger_setup import logger
 from src.alerts.discord_alerts import send_error_alert
-from training.aws_utils.s3_upload import upload_to_s3
 import threading
 
+# import whisper
+# import re
 
 # buffers to try and capture ad time after keyword is mentioned
 # be careful with these, results in larger token cost to ai model
@@ -23,8 +29,7 @@ END_AD_BUFFER = 45
 
 MINIMUM_AD_SKIP_TIME = 15  # Minimum time to skip an ad segment
 
-# lock = threading.Lock()
-lock = threading.RLock()
+# lock = threading.RLock()
 
 ad_keywords = [
     "signing up",
@@ -258,9 +263,33 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 cwd = os.getcwd()
 logger.info(f"Current working directory: {cwd}")
 
+# Construct the absolute path
+# file_path = os.path.join(cwd, ADS_TXT_PATH)
+# logger.info(f'Absolute file path: {file_path}')
+
+# with open(ADS_TXT_PATH, 'r') as file:
+#     ad_companies = {line.strip().lower() for line in file}
+
+
+def update_ad_keywords_with_sponsors(podcast_description):
+    if podcast_description:
+        logger.info(f"Podcast description: {podcast_description}")
+        try:
+            sponsors = fetch_sponsors(podcast_description)
+            if isinstance(sponsors, list):
+                logger.info(f"Podcast sponsors: {sponsors}")
+                return sponsors
+            else:
+                logger.error("Fetched sponsors is not a list")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching or extending sponsors: {e}")
+            return []
+    return []
+
 
 # Find positions of ad-related keywords in the transcription
-def find_ad_timestamps(transcript):
+def find_ad_timestamps(transcript, sponsors):
     """
     Find the timestamps of ad segments in a transcription.
 
@@ -302,7 +331,9 @@ def find_ad_timestamps(transcript):
 
         # high_certainty = any(company.lower() in text for company in ad_companies)
 
-        contains_ad = any(pattern.search(text) for pattern in ad_keywords_compiled)
+        contains_ad = any(company in text for company in sponsors) or any(
+            pattern.search(text) for pattern in ad_keywords_compiled
+        )
 
         if contains_ad:
             start = max(0, t_segment.start - START_AD_BUFFER)
@@ -392,6 +423,12 @@ def extract_segments(segments, start_time, end_time):
     #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
     return extracted_segments
 
+
+# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
+# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
+# python pod_handler/mp3_converter.py
+# python mp3_converter.py --device cuda
+
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Process audio segments.")
 parser.add_argument(
@@ -452,19 +489,7 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment, total_segments):
-    """
-    Transcribe a single audio segment and sends to find ad timestamps if not in first 10 min
-    or last 10 min segment. Reason being is that ads are most likely present in the first/final 10 minutes.
-
-    Removes the ads in the audio segment in return by using the start/end timestamps to cut out the 
-    potential ad audio.
-
-    Args:
-        index (int): The index of the audio segment.
-        audio_segment (AudioSegment): The audio segment to process.
-        total_segments (int): The total number of audio segments.
-    """
+def process_audio_segment(index, audio_segment, total_segments, sponsors):
     try:
         # TODO lets try using openai's model api call here
         # model = whisper.load_model("tiny", device="cuda")
@@ -500,7 +525,7 @@ def process_audio_segment(index, audio_segment, total_segments):
             )
             logger.info("Searching the last segment because it is likely to have ads")
         else:
-            min_ms, max_ms =  find_ad_timestamps(result)
+            min_ms, max_ms = find_ad_timestamps(result, sponsors)
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -574,7 +599,13 @@ def process_audio_segment(index, audio_segment, total_segments):
             )
             return audio_segment
 
-        # markers
+        # TODO grabbing the ad segment TEXT and saving it to a file
+        # TODO honestly we may not even need this at all, as giving the transcript json file appears to be enough
+        # with open(f"transcript_{index}_ad_text.txt", "w", encoding="utf-8") as file:
+        #     for segment in segments:
+        #         file.write(segment['text'] + '\n')
+        ################################################################
+
         start_ads_ms = round(min_ms * 1000)  # Convert minutes to milliseconds
         end_ads_ms = round(max_ms * 1000)
 
@@ -599,9 +630,9 @@ def process_audio_segment(index, audio_segment, total_segments):
         return audio_before_ad + audio_after_ad
 
 
-def transcribe_and_label_audio(audio_file):
+def remove_ads_from_audio(audio_file, podcast_description):
     """
-    Transcribes and labels audio segments.
+    Removes ads from an audio file.
 
     This function takes an MP3 audio file as input, splits it into 10-minute segments,
     transcribes each segment, identifies ad timestamps in the transcription, and removes
@@ -622,6 +653,8 @@ def transcribe_and_label_audio(audio_file):
     # model = whisper.load_model("tiny", device="cpu")
     # model = whisper.load_model("tiny", device="cuda")
     # model = whisper.load_model("medium", device="cuda")
+
+    sponsors = update_ad_keywords_with_sponsors(podcast_description)
 
     audio = AudioSegment.from_mp3(audio_file)
     original_duration = len(audio) / 1000
@@ -656,7 +689,9 @@ def transcribe_and_label_audio(audio_file):
         logger.info(f"Using {model_pool.qsize()} models for processing")
         # Submit all segments to the executor
         future_to_segment = {
-            executor.submit(process_audio_segment, i, segments[i], len(segments)): i
+            executor.submit(
+                process_audio_segment, i, segments[i], len(segments), sponsors
+            ): i
             for i in range(len(segments))
         }
 
@@ -692,6 +727,8 @@ def transcribe_and_label_audio(audio_file):
     )
     return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
 
-if __name__ == "__main__":
-    
-    transcribe_and_label_audio("downloads/potp1201art19.mp3")
+
+podcast_description = """<p>Today we’ll hear about: </p><ul>\n<li>A young owner looking for help establishing processes in his fast- growing business </li>\n<li>A woman looking to fire an employee who won’t see it coming </li>\n<li>Dave Ramsey’s take on Home Depot requiring corporate employees to work in retail stores </li>\n<li>A business owner looking for advice on profit sharing with her team </li>\n</ul><p> </p><p><strong>Next Steps</strong> </p><ul>\n<li>📞 Have a question for the show? Call 844-944-1070 or send us a message: <a href=\"https://ter.li/ask-us\">https://ter.li/ask-us</a> </li>\n<li>📚 Learn about the EntreLeadership System: <a href=\"https://ter.li/system-p\">https://ter.li/system-p</a> </li>\n<li>💻 Get EntreLeadership Elite for your business: <a href=\"https://ter.li/elite-p\">https://ter.li/elite-p</a> </li>\n<li>✉️ Sign up to receive tactical tools, advice and resources in your inbox every week: <a href=\"https://ter.li/enl\">https://ter.li/enl</a> </li>\n<li>🏢 Attend EntreLeadership Summit: <a href=\"https://ter.li/summit\">https://ter.li/summit</a>  </li>\n<li>🎤 Attend EntreLeadership Master Series: <a href=\"https://ter.li/masterseries\">https://ter.li/masterseries</a>  </li>\n</ul><p> </p><p><strong>Offers From Today's Sponsors</strong> </p><ul>\n<li>💼 Go to<a href=\"https://www.belaysolutions.com/Entreleadership\"> <strong>Belay Solutions</strong></a> or text ENTRE to 55123 for their free resource! </li>\n<li>💻 Visit<a href=\"https://www.netsuite.com/Ramsey\"> <strong>NetSuite</strong></a> today to learn more </li>\n<li>🧾 Visit<a href=\"https://www.payority.com/entreleadership\"> </a><a href=\"https://www.payority.com/entreleadership\"><strong>Payority</strong></a> for a free consultation! </li>\n<li>📝 Use code entre15 to get 15% off your first year of <a href=\"https://www.trainual.com/entre\"><strong>Trainual</strong></a> </li>\n</ul><p> </p><p><strong>Listen to More From Ramsey Network</strong> </p><p>🎙️ <a href=\"https://ter.li/gpny1a\">The Ramsey Show</a> </p><p>💸 <a href=\"https://ter.li/430qk2\">The Ramsey Show Highlights</a> </p><p><strong>🧠</strong> <a href=\"https://ter.li/w9syza\">The Dr. John Delony Show</a> </p><p>🍸 <a href=\"https://ter.li/k3waa1\">Smart Money Happy Hour</a> </p><p>💡 <a href=\"https://ter.li/j3ahu7\">The Rachel Cruze Show</a> </p><p>💰 <a href=\"https://ter.li/99j2kb\">George Kamel</a> </p><p>💼 <a href=\"https://ter.li/puh2qh\">The Ken Coleman Show</a> </p><p> </p><p><a href=\"https://www.megaphone.fm/adchoices\">Learn More About Your Ad Choices</a>  </p><p><a href=\"https://www.ramseysolutions.com/company/policies/privacy-policy\">Ramsey Solutions Privacy Policy</a> </p>"""
+
+# if __name__ == "__main__":
+#     remove_ads_from_audio("downloads/potp1201art19.mp3", podcast_description)
