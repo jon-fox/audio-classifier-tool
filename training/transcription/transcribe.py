@@ -464,7 +464,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
 
         model = model_pool.get(block=True)  # Wait until a model is available
         logger.info(
-            f"Thread using model {id(model)}, processing transcript_{index}_logging.json"
+            f"Thread using model {id(model)}, processing transcript_{index}_ad_label.json"
         )
         segment_path = f"segment_{index}.wav"
         audio_segment.export(segment_path, format="wav")
@@ -472,28 +472,52 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         result_generator, info = model.transcribe(segment_path, language="en")
         # Convert the generator to a list
         result = list(result_generator)
+        logger.info(f"Generated result with {len(result)} segments for index {index}")
+        # Convert segments to dicts for JSON serialization
+        result_dicts = [
+            {
+                "start": segment.start,
+                "end": segment.end,
+                "text": segment.text,
+            }
+            for segment in result
+        ]
         # print(f"Result: {result}")
         # logger.info(f"Finding Timestamps for segment index {index}")
         # min_ms, max_ms = find_ad_timestamps(result["segments"])
-        if index == 0:
-            min_ms = 0  # 0 in milliseconds
-            max_ms = 4 * 60 * 1000  # 4 minutes in milliseconds
+        with open(
+            f"{script_dir}/full_audio_transcript_{index}.json", "w", encoding="utf-8"
+        ) as file:
             logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json"
+                f"Writing full transcript to {script_dir}/full_audio_transcript_{index}.json"
+            )
+            json.dump(result_dicts, file, indent=2, ensure_ascii=False)
+        logger.info(
+            f"Full transcript written with {len(result_dicts)} segments for index {index}"
+        )
+        if index == 0:
+            min_ms = 0  # 0 in seconds
+            max_ms = 4 * 60  # 4 minutes in seconds
+            logger.info(
+                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_ad_label.json"
             )
             logger.info("Searching the first segment because it is likely to have ads")
         elif index == total_segments - 1:
-            segment_duration_ms = len(audio_segment)
-            min_ms = max(
-                0, segment_duration_ms - (3 * 60 * 1000)
-            )  # 3 minutes before the end
-            max_ms = segment_duration_ms  # Length of the audio segment
+            segment_duration_sec = len(audio_segment) / 1000  # in seconds
+            min_ms = max(0, segment_duration_sec - (3 * 60))  # 3 minutes before the end
+            max_ms = segment_duration_sec  # Length of the audio segment
             logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json"
+                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_ad_label.json"
             )
             logger.info("Searching the last segment because it is likely to have ads")
         else:
-            min_ms, max_ms = find_ad_timestamps(result, sponsors)
+            ad_segments = find_ad_timestamps(result, sponsors)
+            if ad_segments:
+                min_ms = min(s[0] for s in ad_segments)
+                max_ms = max(s[1] for s in ad_segments)
+            else:
+                min_ms = float("inf")
+                max_ms = float("-inf")
         # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
@@ -503,19 +527,19 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
             context="Error during segment extraction in transcribe training data",
             additional_info={
                 "segment_index": index,
-                "transcript_file": f"transcript_{index}_logging.json",
+                "transcript_file": f"transcript_{index}_ad_label.json",
                 "traceback": traceback.format_exc()[:500],  # Truncate traceback
             },
         )
         raise Exception(
-            f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}"
+            f"An error occurred during Transcription for transcript_{index}_ad_label.json: {str(e)}"
         )
 
     # logger.info(f"ad timestamps: {ad_timestamps}")
     logger.info(f"##############################################")
-    logger.info(f"Segment {index}, for transcript_{index}_logging.json")
+    logger.info(f"Segment {index}, for transcript_{index}_ad_label.json")
     logger.info(
-        f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}_logging.json"
+        f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}_ad_label.json"
     )
     logger.info(f"##############################################")
 
@@ -523,12 +547,12 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
     os.remove(segment_path)  # remove the audio segment after processing
     if min_ms == float("inf") and max_ms == float("-inf"):
         logger.info(
-            f"No ads found in the segment for transcript transcript_{index}_logging.json"
+            f"No ads found in the segment for transcript transcript_{index}_ad_label.json"
         )
         return audio_segment
     elif max_ms - min_ms < MINIMUM_AD_SKIP_TIME:
         logger.info(
-            "Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}_logging.json"
+            "Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}_ad_label.json"
         )
         return audio_segment
     else:
@@ -538,19 +562,19 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         # max_ms = min_ms + 300
         # logger.info(f"SETTING::: min_ms: {min_ms}, max_ms: {max_ms}")
         # Extract the segments containing ads for logging
-        logger.info(f"Extracting segments for transcript_{index}_logging.json")
+        logger.info(f"Extracting segments for transcript_{index}_ad_label.json")
         segments = extract_segments(result, min_ms, max_ms)
 
         ################################################################
         try:
             with open(
-                f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8"
+                f"{script_dir}/transcript_{index}_ad_label.json", "w", encoding="utf-8"
             ) as file:
                 logger.info(
-                    f"Logging ad segments to {script_dir}/transcript_{index}_logging.json"
+                    f"Logging ad segments to {script_dir}/transcript_{index}_ad_label.json"
                 )
-                # logger.info(f"Segments type for transcript_{index}_logging.json: {type(segments)}")
-                # logger.info(f"Segments for transcript_{index}_logging.json: {segments}")
+                # logger.info(f"Segments type for transcript_{index}_ad_label.json: {type(segments)}")
+                # logger.info(f"Segments for transcript_{index}_ad_label.json: {segments}")
                 json.dump(segments, file, indent=2, ensure_ascii=False)
                 # json_tricks.dump(segments, file, indent=2, ensure_ascii=False)
         except TypeError as e:
@@ -563,7 +587,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
 
         if min_ms == float("inf") and max_ms == float("-inf"):
             logger.info(
-                f"No ads found in the segment for transcript transcript_{index}_logging.json"
+                f"No ads found in the segment for transcript transcript_{index}_ad_label.json"
             )
             return audio_segment
 
@@ -579,17 +603,17 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
 
         if start_ads_ms < 0:
             logger.info(
-                f"transcript_{index}_logging.json Start time is less than 0, setting to 0 {start_ads_ms}"
+                f"transcript_{index}_ad_label.json Start time is less than 0, setting to 0 {start_ads_ms}"
             )
             start_ads_ms = 0
         if end_ads_ms > len(audio_segment):
             logger.info(
-                f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
+                f"transcript_{index}_ad_label.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
             )
             end_ads_ms = len(audio_segment)
         # audio = AudioSegment.from_wav("sliced_result.wav")
         logger.info(
-            f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json"
+            f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_ad_label.json"
         )
 
         audio_before_ad = audio_segment[:start_ads_ms]
@@ -682,18 +706,132 @@ def remove_ads_from_audio(audio_file, podcast_description):
                 logger.error(f"Episode processing failed: {exc}")
                 logger.error(traceback.format_exc())
         # executor.shutdown(wait=True)
-    logger.info(f"Finished processing audio segments, exporting finished mp3")
-    results.sort(key=lambda x: x[0])
-    # concatenate the segments without ads
-    finished_audio_without_ads = sum(x[1] for x in results)
-    # Save the result
-    finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
+    logger.info(f"Finished transcribing audio segments")
 
-    output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
 
-    # Return the duration of the finished audio in seconds
-    logger.info(f"Audio with ads duration: {original_duration} seconds")
-    logger.info(
-        f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds"
-    )
-    return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
+def create_transcript_structure(podcast_name, write_to_file=False):
+    """
+    Reads the transcript JSON files and structures them into the required format.
+
+    Args:
+        podcast_name (str): Name of the podcast for the output file.
+        write_to_file (bool): If True, writes the structure to {podcast_name}_training_data.json
+    """
+    logger.info(f"create_transcript_structure called with podcast_name={podcast_name}, write_to_file={write_to_file}")
+    downloads_dir = os.path.join(script_dir, "..", "..", "downloads")
+
+    # Determine episode_id from the latest mp3 in downloads
+    episode_id = "unknown"
+    if os.path.exists(downloads_dir):
+        mp3_files = [f for f in os.listdir(downloads_dir) if f.endswith(".mp3")]
+        if mp3_files:
+            latest_mp3 = max(
+                mp3_files,
+                key=lambda x: os.path.getctime(os.path.join(downloads_dir, x)),
+            )
+            episode_id = os.path.splitext(latest_mp3)[0]
+
+    all_texts = []
+    all_segments = []
+    labels = []
+
+    # Find the maximum index dynamically
+    max_index = -1
+    if os.path.exists(script_dir):
+        for filename in os.listdir(script_dir):
+            if filename.startswith("full_audio_transcript_") and filename.endswith(".json"):
+                try:
+                    index = int(filename.split("_")[-1].split(".")[0])
+                    max_index = max(max_index, index)
+                except ValueError:
+                    pass
+    if max_index == -1:
+        logger.warning("No full_audio_transcript files found")
+        return None
+
+    # Process from 0 to max_index
+    for index in range(max_index + 1):
+        full_file = os.path.join(script_dir, f"full_audio_transcript_{index}.json")
+        if os.path.exists(full_file):
+            with open(full_file, "r", encoding="utf-8") as f:
+                segments = json.load(f)
+                all_segments.extend(segments)
+                for seg in segments:
+                    all_texts.append(seg["text"])
+
+    # Clean the text: strip each segment and join with single space
+    cleaned_texts = [seg["text"].strip() for seg in all_segments]
+    text = " ".join(cleaned_texts)
+    
+    # Update segments with cleaned text
+    for i, seg in enumerate(all_segments):
+        seg["text"] = cleaned_texts[i]
+
+    # Now process logging files for labels
+    for index in range(max_index + 1):
+        logging_file = os.path.join(script_dir, f"transcript_{index}_ad_label.json")
+        if os.path.exists(logging_file):
+            with open(logging_file, "r", encoding="utf-8") as f:
+                log_segments = json.load(f)
+                if log_segments:
+                    text_snippets = []
+                    char_starts = []
+                    char_ends = []
+                    start_times = []
+                    end_times = []
+                    for seg in log_segments:
+                        text_part = seg["text"].strip()
+                        pos = text.find(text_part)
+                        if pos != -1:
+                            char_starts.append(pos)
+                            char_ends.append(pos + len(text_part))
+                            text_snippets.append(text_part)
+                            start_times.append(seg["start"])
+                            end_times.append(seg["end"])
+                        else:
+                            logger.warning(f"Segment text not found for index {index}: {text_part[:50]}...")
+                    
+                    if char_starts:
+                        min_char_start = min(char_starts)
+                        max_char_end = max(char_ends)
+                        min_start_time = min(start_times)
+                        max_end_time = max(end_times)
+                        concatenated_snippet = " ".join(text_snippets)
+                        labels.append({
+                            "label": "Ad",
+                            "char_start": min_char_start,
+                            "char_end": max_char_end,
+                            "start_time": min_start_time,
+                            "end_time": max_end_time,
+                            "text_snippet": concatenated_snippet
+                        })
+
+    structure = {
+        "episode_id": episode_id,
+        "text": text,
+        "segments": all_segments,
+        "labels": labels,
+        "model": "whisper-tiny",
+        "transcript_prep": "join_with_single_space",
+    }
+
+    # Clean up the JSON files
+    for index in range(max_index + 1):
+        full_file = os.path.join(script_dir, f"full_audio_transcript_{index}.json")
+        if os.path.exists(full_file):
+            os.remove(full_file)
+            logger.info(f"Cleaned up {full_file}")
+        
+        logging_file = os.path.join(script_dir, f"transcript_{index}_ad_label.json")
+        if os.path.exists(logging_file):
+            os.remove(logging_file)
+            logger.info(f"Cleaned up {logging_file}")
+
+    # Write to file if requested
+    if write_to_file:
+        output_file = os.path.join(script_dir, f"{podcast_name}_training_data.json")
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(structure, f, indent=2, ensure_ascii=False)
+        logger.info(f"Transcript structure written to {output_file}")
+
+    return structure
