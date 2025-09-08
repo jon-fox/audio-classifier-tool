@@ -794,22 +794,17 @@ def create_transcript_structure(podcast_name, write_to_file=False):
                     if char_starts:
                         min_char_start = min(char_starts)
                         max_char_end = max(char_ends)
-                        min_start_time = min(start_times)
-                        max_end_time = max(end_times)
                         concatenated_snippet = " ".join(text_snippets)
                         labels.append({
                             "label": "Ad",
                             "char_start": min_char_start,
                             "char_end": max_char_end,
-                            "start_time": min_start_time,
-                            "end_time": max_end_time,
                             "text_snippet": concatenated_snippet
                         })
 
     structure = {
         "episode_id": episode_id,
         "text": text,
-        "segments": all_segments,
         "labels": labels,
         "model": "whisper-tiny",
         "transcript_prep": "join_with_single_space",
