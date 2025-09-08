@@ -20,13 +20,17 @@ def upload_to_s3(file_path: str, podcast_path: str) -> None:
     print(f"Uploaded {file_path} to s3://{BUCKET_NAME}/{BUCKET_PATH}{podcast_path}")
 
 
-def upload_output_files(output_dir: str = "output") -> None:
+def upload_output_files(output_dir: str = "training/output") -> None:
     """
     Upload all files from the output directory to S3.
 
     Args:
-        output_dir (str): The local directory containing files to upload.
+        output_dir (str): The local directory containing files to upload. Defaults to ../transcription
     """
+    print(f"Current working directory: {os.getcwd()}")
+    if output_dir is None:
+        output_dir = os.path.join(os.path.dirname(__file__), '..', 'transcription')
+    
     if not os.path.exists(output_dir):
         print(f"Output directory {output_dir} does not exist.")
         return
@@ -37,8 +41,3 @@ def upload_output_files(output_dir: str = "output") -> None:
             # Use filename as the S3 key
             podcast_path = filename
             upload_to_s3(file_path, podcast_path)
-
-
-if __name__ == "__main__":
-    # Default output directory is 'output' in the current working directory
-    upload_output_files()
