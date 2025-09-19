@@ -622,7 +622,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         return audio_before_ad + audio_after_ad
 
 
-def remove_ads_from_audio(audio_file, podcast_description):
+def label_ads_from_audio(audio_file, podcast_description):
     """
     Removes ads from an audio file.
 
