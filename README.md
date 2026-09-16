@@ -1,16 +1,16 @@
-# JusSkipIt App - AI-Powered Podcast Ad Removal
+# JusSkipIt - AI-Powered Podcast Ad Removal
 
-🎧 **[JusSkipIt.com](https://www.jusskipit.com)** - The intelligent podcast ad removal service
+> JusSkipIt originally ran as a hosted service at jusskipit.com. The service has been retired, but the full processing engine is open source here and can be self-hosted for podcast ad removal.
 
 ## Overview
 
-JusSkipIt automatically detects and removes advertisements from podcast audio files using advanced AI transcription technology. This application is the core processing engine that:
+JusSkipIt automatically detects and removes advertisements from podcast audio files using AI transcription. This is the core processing engine:
 
-- Downloads podcast episodes from audio URLs
-- Uses WhisperX/OpenAI Whisper for AI-powered transcription
-- Intelligently identifies and removes advertisement segments
-- Uploads cleaned audio files to AWS S3/CloudFront CDN
-- Manages processing status via DynamoDB
+- Downloads podcast episodes from audio URLs (polled from SQS)
+- Transcribes audio with WhisperX/OpenAI Whisper (GPU-accelerated)
+- Identifies advertisement segments using OpenAI
+- Cuts the ads and re-assembles the audio
+- Uploads cleaned files to S3/CloudFront and tracks status in DynamoDB
 
 ## Setup & Configuration
 
@@ -18,24 +18,26 @@ JusSkipIt automatically detects and removes advertisements from podcast audio fi
 
 ```bash
 # AWS Credentials
-export AWS_SHARED_CREDENTIALS_FILE=/mnt/c/Users/foxj7/.aws/credentials
-export AWS_CONFIG_FILE=/mnt/c/Users/foxj7/.aws/config
+export AWS_SHARED_CREDENTIALS_FILE=~/.aws/credentials
+export AWS_CONFIG_FILE=~/.aws/config
 
 # Application Paths
-export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt_App"
-export BASE_PATH=/mnt/c/Developer_Workspace/JusSkipIt_App/
-# or for local development:
-# export BASE_PATH=.
-
-# API Keys
-set OPENAI_API_KEY=your_openai_api_key_here
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+export BASE_PATH=.   # working directory for downloads/output (defaults to /app in the container)
 ```
+
+### Secrets
+
+Secrets are read at runtime, not from env vars:
+
+- OpenAI API key: SSM Parameter Store at `/openai/api_key`
+- Discord error webhook: SSM Parameter Store at `/application/discord/errors_webhook`
+- Database credentials: Secrets Manager
 
 ### GPU/CUDA Setup
 
 ```bash
-# PyAudio & CUDA Library Path
-# Required for GPU-accelerated AI transcription
+# CUDA library path, required for GPU-accelerated transcription
 export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 ```
 
@@ -44,7 +46,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 ### Terraform Backend
 
 ```bash
-terraform init -backend-config="bucket=094d0cca-01db-472d-adc8-5eae88f51899"
+terraform init -backend-config="bucket=<your-tf-state-bucket>"
 ```
 
 ### AWS ECS Agent Setup
@@ -55,13 +57,9 @@ sudo systemctl start ecs
 sudo systemctl status ecs
 ```
 
-### Pre-configured AMIs
+### AMI Requirements
 
-| AMI ID | Description |
-|--------|-------------|
-| `ami-092326650e967b14a` | NVIDIA drivers + Docker |
-| `ami-02e30e25d601cac67` | NVIDIA + Docker + JusSkipIt container (stopped) |
-| `ami-05f85bc16c1a0257a` | **Latest JusSkipIt v2** |
+Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS Deep Learning AMI).
 
 ## CI/CD
 
@@ -81,9 +79,7 @@ sudo systemctl status ecs
 
 ## Quick Start
 
-1. Set environment variables
+1. Set environment variables and store secrets in SSM (see above)
 2. Build Docker container: `docker build -t jusskipit-app .`
 3. Run: `docker run --gpus all jusskipit-app`
 4. Application polls SQS for podcast processing requests
-
-For more information, visit **[JusSkipIt.com](https://www.jusskipit.com)**
