@@ -35,8 +35,6 @@ RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
 
 COPY src/ /app/src
 
-COPY certs/ /app/certs
-
 ENV PYTHONPATH=/app
 
 # Pre-download Whisper model during build
