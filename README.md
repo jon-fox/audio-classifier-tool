@@ -41,6 +41,10 @@ Secrets are read at runtime, not from env vars:
 export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
 ```
 
+## Local Testing
+
+See [local.md](local.md) to run the ad-removal pipeline on a single episode without the AWS worker infrastructure.
+
 ## Infrastructure & Deployment
 
 ### Terraform Backend
