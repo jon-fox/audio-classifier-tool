@@ -415,11 +415,11 @@ model_pool = Queue()
 
 
 def check_cuda():
-    import torch
+    import ctranslate2
 
-    if torch.cuda.is_available():
+    if ctranslate2.get_cuda_device_count() > 0:
         logger.info("CUDA is available")
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cuda"
     else:
         logger.info("CUDA is not available")
         device = "cpu"
