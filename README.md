@@ -25,7 +25,7 @@ docker run --gpus all \
   audioclassifier-app
 ```
 
-Drop `--gpus all` to run on CPU (slower). More in [local.md](local.md).
+Drop `--gpus all` to run on CPU (slower). The same container runs on any GPU box — RunPod, Modal, a gaming PC.
 
 ## How It Works
 

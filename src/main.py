@@ -129,7 +129,7 @@ def main():
     if not payload:
         logger.error(
             'Set PAYLOAD to a JSON object like {"podcast_name": ..., '
-            '"episode_name": ..., "audio_url": ...} — see local.md'
+            '"episode_name": ..., "audio_url": ...} — see README.md'
         )
         sys.exit(1)
     process_payload(json.loads(payload))
