@@ -1,10 +1,14 @@
 import argparse
 import os
+import sys
+
+# Allow running as `python src/main.py` from the repo root without PYTHONPATH
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 from src.config.detection_config import set_detection_config
 import json
-import sys
 from datetime import datetime
 from src.config.settings import AWS_ENABLED
 from src.cloud.aws import write_to_db

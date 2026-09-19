@@ -7,8 +7,6 @@ Runs locally by default: one episode in, cleaned audio out. Needs an OpenAI API 
 ```bash
 uv sync
 export OPENAI_API_KEY=<your-key>
-export BASE_PATH=. PYTHONPATH=$PWD
-mkdir -p downloads output
 
 PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
   uv run python src/main.py
