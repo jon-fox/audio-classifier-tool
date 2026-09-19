@@ -11,3 +11,12 @@ uv run python src/main.py
 ```
 
 GPU is optional — the Whisper `tiny` model runs on CPU, just slower.
+
+## Building the Image
+
+```bash
+docker build -t jusskipit-app .
+docker run --gpus all jusskipit-app
+```
+
+Drop `--gpus all` to run on CPU.
