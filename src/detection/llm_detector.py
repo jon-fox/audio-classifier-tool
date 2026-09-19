@@ -33,7 +33,6 @@ assistant_id = None
 # event_handler_lock = Lock()
 
 
-
 def _create_assistant():
 
     assistant = client.beta.assistants.create(
