@@ -1,9 +1,6 @@
 services:
   my-service:
     image: ${DOCKER_IMAGE_URI}
-    ports:
-      - "80:80"
-      - "443:443"
     deploy:
       replicas: 1
       resources:
