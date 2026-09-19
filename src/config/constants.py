@@ -13,3 +13,9 @@ NUMBER_OF_MODELS = int(os.getenv("NUMBER_OF_MODELS", 8))
 MODEL_SIZE = "tiny"
 
 CONFIDENCE_SCORE = 60
+
+DISCORD_ALERTS_ENABLED = os.getenv("DISCORD_ALERTS", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)

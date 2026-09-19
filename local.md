@@ -12,7 +12,7 @@ PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url"
   uv run python src/main.py
 ```
 
-Optional: `export DISCORD_WEBHOOK_URL=<url>` to get processing alerts in Discord.
+Optional: `export DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` to get processing alerts in Discord.
 
 ## Docker
 

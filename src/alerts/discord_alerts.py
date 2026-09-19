@@ -2,22 +2,31 @@ import requests
 import traceback
 from datetime import datetime
 from src.config import settings
+from src.config.constants import DISCORD_ALERTS_ENABLED
 from src.config.settings import AWS_ENABLED, get_setting
 from src.logger.logger_setup import logger
 
 
 class DiscordAlerter:
     def __init__(self):
+        self.webhook_url = None
+        self.instance_id = "UNKNOWN"
+
+        if not DISCORD_ALERTS_ENABLED:
+            logger.info("Discord alerts disabled (set DISCORD_ALERTS=true to enable)")
+            return
+
         try:
             self.webhook_url = get_setting(settings.DISCORD_WEBHOOK_URL)
             if not self.webhook_url:
-                logger.info("No Discord webhook configured, alerts disabled")
+                logger.warning(
+                    "DISCORD_ALERTS is enabled but no webhook is configured, alerts disabled"
+                )
             # Use lazy import to avoid circular dependency
             self.instance_id = self._get_instance_id() or "UNKNOWN"
         except Exception as e:
             logger.error(f"Failed to initialize Discord alerter: {e}")
             self.webhook_url = None
-            self.instance_id = "UNKNOWN"
 
     def _get_instance_id(self):
         """Lazy import to avoid circular dependency"""
@@ -45,7 +54,7 @@ class DiscordAlerter:
             additional_info: Dictionary of additional information to include
         """
         if not self.webhook_url:
-            logger.error("Discord webhook URL not available, cannot send alert")
+            logger.debug("Discord alerts disabled, skipping alert")
             return False
 
         try:
@@ -145,7 +154,7 @@ class DiscordAlerter:
             additional_info: Dictionary of additional information
         """
         if not self.webhook_url:
-            logger.error("Discord webhook URL not available, cannot send alert")
+            logger.debug("Discord alerts disabled, skipping alert")
             return False
 
         try:

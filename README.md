@@ -33,7 +33,7 @@ Config resolves from environment variables first. Setting `APP_MODE=aws` enables
 | Env var | SSM fallback (`APP_MODE=aws`) |
 |---------|-------------------------------|
 | `OPENAI_API_KEY` | `/openai/api_key` |
-| `DISCORD_WEBHOOK_URL` (optional) | `/application/discord/errors_webhook` |
+| `DISCORD_WEBHOOK_URL` (needs `DISCORD_ALERTS=true`) | `/application/discord/errors_webhook` |
 | `APP_STORAGE_BUCKET` | `/app/app_storage_bucket` |
 | `CDN_BASE_URL` | `/cloudfront/distribution/url` |
 | `SQS_URL` | `/sqs/audio_processing/url` |
