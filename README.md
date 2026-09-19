@@ -6,11 +6,11 @@
 
 AudioClassifier automatically detects and removes advertisements from podcast audio files using AI transcription. This is the core processing engine:
 
-- Downloads podcast episodes from audio URLs (polled from SQS)
-- Transcribes audio with WhisperX/OpenAI Whisper (GPU-accelerated)
+- Downloads podcast episodes from audio URLs (a single episode via `PAYLOAD`, or polled from SQS in AWS mode)
+- Transcribes audio with faster-whisper (GPU-accelerated, runs on CPU too)
 - Identifies advertisement segments using OpenAI
 - Cuts the ads and re-assembles the audio
-- Uploads cleaned files to S3/CloudFront and tracks status in DynamoDB
+- Writes cleaned files to `output/` (local) or S3/CloudFront with status in DynamoDB (AWS mode)
 
 ## Setup & Configuration
 
@@ -73,23 +73,17 @@ Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS 
 
 ## CI/CD
 
-- `build.yml`: builds the Docker image on push/PR (no AWS required)
-- `deploy-aws.yml`: optional manual dispatch — pushes to ECR and runs the SQS worker on a GPU EC2 instance
+Both workflows are manual dispatch only:
 
-## Development Notes
+- `build.yml`: builds the Docker image (no AWS required)
+- `deploy-aws.yml`: pushes to ECR and runs the SQS worker on a GPU EC2 instance
 
-### Known Issues
-- **11/28**: WhisperX compatibility issues due to ctranslate2 updates
-- Monitor for audio processing library version conflicts
-
-### Architecture
+## Architecture
 - **Container-based**: Docker with NVIDIA CUDA support
 - **Cloud integration**: optional, isolated under `src/cloud/` (AWS today: S3, DynamoDB, SQS, Lambda, SSM), enabled with `APP_MODE=aws`
 - **AI Processing**: GPU-accelerated transcription for faster ad detection
 
 ## Quick Start
 
-1. Set environment variables and store secrets in SSM (see above)
-2. Build Docker container: `docker build -t audioclassifier-app .`
-3. Run: `docker run --gpus all audioclassifier-app`
-4. Application polls SQS for podcast processing requests
+1. Local single-episode runs (native or Docker): see [local.md](local.md)
+2. AWS worker mode: set `APP_MODE=aws` with the SSM parameters above — the container then polls SQS for processing requests

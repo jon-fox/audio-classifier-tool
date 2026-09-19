@@ -6,7 +6,7 @@ from openai import OpenAI
 # from typing_extensions import override
 # from pprint import pprint
 import re
-from src.config.constants import CONFIDENCE_SCORE, MODEL_NAME
+from src.config.constants import CONFIDENCE_SCORE, OPENAI_MODEL
 import time
 import backoff
 from src.logger.logger_setup import logger
@@ -192,7 +192,7 @@ def _create_assistant():
         tools=[{"type": "file_search"}],
         temperature=0,
         #   model="gpt-4-turbo-preview",
-        model=MODEL_NAME,
+        model=OPENAI_MODEL,
         # model="US Immigration Law AI",
         # https://chat.openai.com/g/g-2g79Fgyn6-us-immigration-law-ai
     )
@@ -481,7 +481,7 @@ def fetch_sponsors(podcast_description):
     logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
     try:
         response = client.responses.create(
-            model=MODEL_NAME,
+            model=OPENAI_MODEL,
             instructions=sponsor_instructions,
             input=podcast_description,
             temperature=0,

@@ -17,7 +17,6 @@ local_models/
 *.out
 *.json
 *.txt
-!src/ad_utils/popular_ads.txt
 
 # Training data
 training_data.*

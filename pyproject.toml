@@ -10,7 +10,6 @@ dependencies = [
     "backoff>=2.2.1",
     "black>=26.5.1",
     "boto3>=1.40.21",
-    "bs4>=0.0.2",
     "ctranslate2==4.8.2",
     "faster-whisper==1.2.1",
     "numpy>=2",
@@ -20,5 +19,4 @@ dependencies = [
     "openai==1.106.1",
     "pydub==0.25.1",
     "requests>=2.32.5",
-    "selenium>=4.35.0",
 ]

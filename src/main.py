@@ -14,11 +14,6 @@ from src.cloud.aws.ec2 import (
 )
 from src.alerts.discord_alerts import send_error_alert, send_processing_alert
 
-# uvicorn app:app --reload
-# curl -L "http://localhost:8000/stream?url=<MP3_FILE_URL>"
-# http://localhost:8000/stream?podcast_name=Darknet%20Diaries
-# http://localhost:8000/stream?podcast_name=The%20Jimmy%20DORE%20Show
-
 # Configuration (env vars first; remote parameters when APP_MODE=aws)
 REGION = settings.REGION
 BUCKET_NAME = get_setting(settings.APP_STORAGE_BUCKET)
@@ -105,8 +100,6 @@ def invoke_rssfeed_update_lambda(
 
 
 def process_payload(payload={}, receipt_handle=None, message_id=None):
-    # Retrieve the payload from the environment variable
-    # payload = json.loads(os.getenv('PAYLOAD', payload))
     logger.info(f"Received payload::{payload}")
 
     if payload:
@@ -352,17 +345,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    # payload = {
-    #     "podcast_name": "Candace",
-    #     "episode_name": "URGENT: Trump Must Drop JD Vance To Avoid Another Assassination Attempt | Candace Ep 65",
-    #     "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC9411721285.mp3?updated=1726522694"
-    # }
-
-    # payload = {
-    #     "podcast_name": "The Boyscast with Ryan Long",
-    #     "episode_name": "The Debate Aftermath, Article Calls Believing in Aliens Dangerous, Jaoquin Phoenix Walks Off Movie For Being too Gay",
-    #     "audio_url": "https://www.podtrac.com/pts/redirect.mp3/pdst.fm/e/chrt.fm/track/7GB118/pscrb.fm/rss/p/mgln.ai/e/35/arttrk.com/p/ADCT2/clrtpod.com/m/traffic.megaphone.fm/ADV8126990425.mp3?updated=1726194017"
-    # }
-
-    # export PAYLOAD='{"podcast_name": "Candace", "episode_name": "URGENT: Trump Must Drop JD Vance To Avoid Another Assassination Attempt | Candace Ep 65", "audio_url": "https://pscrb.fm/rss/p/traffic.megaphone.fm/GEORGETOMINC9411721285.mp3?updated=1726522694"}'
