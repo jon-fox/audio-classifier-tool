@@ -1,14 +1,14 @@
 [project]
 name = "audioclassifier-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "Dynamic Classifier and Audio Removal"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
     # audioop was removed from the stdlib in 3.13; pydub needs this shim
     "audioop-lts; python_version >= '3.13'",
     "backoff>=2.2.1",
-    "black>=26.5.1",
     "boto3>=1.40.21",
     "ctranslate2==4.8.2",
     "faster-whisper==1.2.1",
@@ -20,4 +20,9 @@ dependencies = [
     "pydub==0.25.1",
     "python-toon>=0.1.3",
     "requests>=2.32.5",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
 ]

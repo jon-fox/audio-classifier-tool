@@ -38,3 +38,7 @@ Workflows (manual dispatch only):
 
 - `build.yml` — builds the Docker image, no AWS required
 - `deploy-aws.yml` — pushes to ECR and runs the worker on a GPU EC2 instance
+
+## License
+
+[MIT](LICENSE)
