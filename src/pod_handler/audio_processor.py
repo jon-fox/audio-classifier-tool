@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 import soundfile as sf
 from faster_whisper import WhisperModel
@@ -265,7 +267,9 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment, samplerate, total_segments, sponsors):
+def process_audio_segment(
+    index, audio_segment, samplerate, total_segments, sponsors, transcripts_dir
+):
     def to_ms(sample_count):
         return sample_count * 1000 // samplerate
 
@@ -275,7 +279,7 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
     try:
         model = model_pool.get(block=True)  # Wait until a model is available
         logger.info(
-            f"Thread using model {id(model)}, processing transcript_{index}_logging.json"
+            f"Thread using model {id(model)}, processing transcript_{index}.json"
         )
         segment_path = f"segment_{index}.wav"
         sf.write(segment_path, audio_segment, samplerate)
@@ -289,7 +293,7 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
             min_ms = 0  # 0 in milliseconds
             max_ms = 4 * 60 * 1000  # 4 minutes in milliseconds
             logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json"
+                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}.json"
             )
             logger.info("Searching the first segment because it is likely to have ads")
         elif index == total_segments - 1:
@@ -299,7 +303,7 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
             )  # 3 minutes before the end
             max_ms = segment_duration_ms  # Length of the audio segment
             logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}_logging.json"
+                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}.json"
             )
             logger.info("Searching the last segment because it is likely to have ads")
         else:
@@ -313,19 +317,19 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
             context="Error during transcription in audio_processor",
             additional_info={
                 "segment_index": index,
-                "transcript_file": f"transcript_{index}_logging.json",
+                "transcript_file": f"transcript_{index}.json",
                 "traceback": traceback.format_exc()[:500],  # Truncate traceback
             },
         )
         raise Exception(
-            f"An error occurred during Transcription for transcript_{index}_logging.json: {str(e)}"
+            f"An error occurred during Transcription for transcript_{index}.json: {str(e)}"
         )
 
     # logger.info(f"ad timestamps: {ad_timestamps}")
     logger.info(f"##############################################")
-    logger.info(f"Segment {index}, for transcript_{index}_logging.json")
+    logger.info(f"Segment {index}, for transcript_{index}.json")
     logger.info(
-        f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}_logging.json"
+        f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}.json"
     )
     logger.info(f"##############################################")
 
@@ -333,12 +337,12 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
     os.remove(segment_path)  # remove the audio segment after processing
     if min_ms == float("inf") and max_ms == float("-inf"):
         logger.info(
-            f"No ads found in the segment for transcript transcript_{index}_logging.json"
+            f"No ads found in the segment for transcript transcript_{index}.json"
         )
         return audio_segment
     elif max_ms - min_ms < MINIMUM_AD_SKIP_TIME:
         logger.info(
-            "Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}_logging.json"
+            "Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}.json"
         )
         return audio_segment
     else:
@@ -348,41 +352,34 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
         # max_ms = min_ms + 300
         # logger.info(f"SETTING::: min_ms: {min_ms}, max_ms: {max_ms}")
         # Extract the segments containing ads for logging
-        logger.info(f"Extracting segments for transcript_{index}_logging.json")
+        logger.info(f"Extracting segments for transcript_{index}.json")
         segments = extract_segments(result, min_ms, max_ms)
 
-        ################################################################
+        transcript_path = os.path.join(transcripts_dir, f"transcript_{index}.json")
         try:
-            with open(
-                f"{script_dir}/transcript_{index}_logging.json", "w", encoding="utf-8"
-            ) as file:
-                logger.info(
-                    f"Logging ad segments to {script_dir}/transcript_{index}_logging.json"
-                )
-                # logger.info(f"Segments type for transcript_{index}_logging.json: {type(segments)}")
-                # logger.info(f"Segments for transcript_{index}_logging.json: {segments}")
+            with open(transcript_path, "w", encoding="utf-8") as file:
+                logger.info(f"Logging ad segments to {transcript_path}")
                 json.dump(segments, file, indent=2, ensure_ascii=False)
-                # json_tricks.dump(segments, file, indent=2, ensure_ascii=False)
         except TypeError as e:
             logger.error(f"Serialization failed with error: {e}")
             logger.error(traceback.format_exc())
 
         logger.info(
-            f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}_logging.json"
+            f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}.json"
         )
         min_ms, max_ms, confidence_score = get_specific_timestamps_using_llm(
-            f"transcript_{index}_logging.json",
-            os.path.join(script_dir, f"transcript_{index}_logging.json"),
+            f"transcript_{index}.json",
+            transcript_path,
             sponsors,
         )
         logger.info(
             f"Finished with values MIN[{min_ms}], MAX[{max_ms}], "
-            f"and Confidence Score [{confidence_score}], transcript_{index}_logging.json"
+            f"and Confidence Score [{confidence_score}], transcript_{index}.json"
         )
 
         if min_ms == float("inf") and max_ms == float("-inf"):
             logger.info(
-                f"No ads found in the segment for transcript transcript_{index}_logging.json"
+                f"No ads found in the segment for transcript transcript_{index}.json"
             )
             return audio_segment
 
@@ -398,16 +395,16 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
 
         if start_ads_ms < 0:
             logger.info(
-                f"transcript_{index}_logging.json Start time is less than 0, setting to 0 {start_ads_ms}"
+                f"transcript_{index}.json Start time is less than 0, setting to 0 {start_ads_ms}"
             )
             start_ads_ms = 0
         if end_ads_ms > to_ms(len(audio_segment)):
             logger.info(
-                f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
+                f"transcript_{index}.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
             )
             end_ads_ms = to_ms(len(audio_segment))
         logger.info(
-            f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json"
+            f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}.json"
         )
 
         audio_before_ad = audio_segment[: to_samples(start_ads_ms)]
@@ -416,7 +413,7 @@ def process_audio_segment(index, audio_segment, samplerate, total_segments, spon
         return np.concatenate((audio_before_ad, audio_after_ad))
 
 
-def remove_ads_from_audio(audio_file, podcast_description):
+def remove_ads_from_audio(audio_file, podcast_description, output_dir=None):
     """
     Removes ads from an audio file.
 
@@ -431,6 +428,14 @@ def remove_ads_from_audio(audio_file, podcast_description):
     Returns:
         None
     """
+    if output_dir is None:
+        output_dir = FINISHED_MP3_DIR
+    transcripts_dir = os.path.join(output_dir, "transcripts")
+    os.makedirs(transcripts_dir, exist_ok=True)
+
+    # Keep the original episode alongside the cleaned one
+    shutil.copy2(audio_file, os.path.join(output_dir, os.path.basename(audio_file)))
+
     sponsors = update_ad_keywords_with_sponsors(podcast_description)
 
     audio, samplerate = sf.read(audio_file, dtype="int16", always_2d=True)
@@ -454,7 +459,13 @@ def remove_ads_from_audio(audio_file, podcast_description):
         # Submit all segments to the executor
         future_to_segment = {
             executor.submit(
-                process_audio_segment, i, segments[i], samplerate, len(segments), sponsors
+                process_audio_segment,
+                i,
+                segments[i],
+                samplerate,
+                len(segments),
+                sponsors,
+                transcripts_dir,
             ): i
             for i in range(len(segments))
         }
@@ -483,11 +494,8 @@ def remove_ads_from_audio(audio_file, podcast_description):
     # concatenate the segments without ads
     finished_audio_without_ads = np.concatenate([x[1] for x in results])
 
-    # Save result to output dir
     stem = os.path.splitext(os.path.basename(audio_file))[0]
-    output_file_path = os.path.abspath(
-        os.path.join(FINISHED_MP3_DIR, f"{stem}_clean.mp3")
-    )
+    output_file_path = os.path.abspath(os.path.join(output_dir, f"{stem}_clean.mp3"))
     sf.write(output_file_path, finished_audio_without_ads, samplerate)
 
     finished_duration = len(finished_audio_without_ads) / samplerate

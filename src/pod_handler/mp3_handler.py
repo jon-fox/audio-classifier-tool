@@ -69,10 +69,13 @@ def mp3_handler(
             )
             raise e
 
+        episode_output_dir = os.path.join(FINISHED_MP3_DIR, podcast_name)
+
         try:
             podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(
                 audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
                 podcast_description=podcast_description,
+                output_dir=episode_output_dir,
             )
         except Exception as e:
             send_error_alert(
@@ -189,15 +192,18 @@ def mp3_handler(
                 )
                 raise e
 
-            # write transcripts to s3
-            transcript_files = [
-                f for f in os.listdir(script_dir) if f.endswith("_logging.json")
-            ]
+            # write transcripts and LLM decisions to s3
+            transcripts_dir = os.path.join(episode_output_dir, "transcripts")
+            transcript_files = (
+                [f for f in os.listdir(transcripts_dir) if f.endswith(".json")]
+                if os.path.isdir(transcripts_dir)
+                else []
+            )
 
             # Upload each transcript file to S3
             for transcript_file in transcript_files:
                 try:
-                    local_path = os.path.join(script_dir, transcript_file)
+                    local_path = os.path.join(transcripts_dir, transcript_file)
                     transcript_s3_key = f"{s3_key}/{transcript_file}"
                     upload_file_to_s3(BUCKET_NAME, transcript_s3_key, local_path)
 

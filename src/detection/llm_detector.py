@@ -1,12 +1,13 @@
 import asyncio
 import atexit
+import json
 import os
 import threading
 
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
 import backoff
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
 
@@ -59,6 +60,9 @@ class Timestamp(BaseModel):
 class DetectionResult(BaseModel):
     confidence_score: int
     timestamps: list[Timestamp]
+    reasoning: str = Field(
+        description="Brief justification for the confidence score and timestamps"
+    )
 
 
 class SponsorList(BaseModel):
@@ -142,8 +146,32 @@ def get_specific_timestamps_using_llm(filename, path, sponsors, lock=None):
             f"\n\nTranscript segments (JSON):\n{transcript}"
         )
     )
-    logger.info(f"Detection result for {filename}: {result.output}")
-    return evaluate_detection(result.output)
+    output = result.output
+    logger.info(f"Detection result for {filename}: {output}")
+    decision = evaluate_detection(output)
+    _write_decision(path, output, decision)
+    return decision
+
+
+def _write_decision(transcript_path, output, decision):
+    decision_path = transcript_path.replace(".json", "_decision.json")
+    try:
+        with open(decision_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "confidence_score": output.confidence_score,
+                    "timestamps": [t.model_dump() for t in output.timestamps],
+                    "reasoning": output.reasoning,
+                    "action": "keep" if decision == NO_DETECTION else "cut",
+                    "cut_range_seconds": (
+                        None if decision == NO_DETECTION else decision[:2]
+                    ),
+                },
+                f,
+                indent=2,
+            )
+    except OSError as e:
+        logger.error(f"Could not write decision file {decision_path}: {e}")
 
 
 def fetch_sponsors(podcast_description):

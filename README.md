@@ -12,7 +12,7 @@ PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url"
   uv run python src/main.py
 ```
 
-The cleaned file lands in `output/`. Or with Docker:
+Results land in `output/<podcast_name>/`: the original mp3, the cleaned `*_clean.mp3`, and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
 
 ```bash
 docker build -t audioclassifier-app .
