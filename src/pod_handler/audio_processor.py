@@ -12,7 +12,6 @@ from queue import Queue
 from src.config.constants import *
 from src.detection.llm_detector import (
     get_specific_timestamps_using_llm,
-    get_run_output,
     fetch_sponsors,
 )
 from src.config.detection_config import get_detection_config
@@ -366,30 +365,17 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
             logger.error(traceback.format_exc())
 
         logger.info(
-            f"Before entering the lock for index {index}: {threading.get_ident()}"
+            f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}_logging.json"
         )
-
-        with lock:
-            logger.info(
-                f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}_logging.json"
-            )
-            run, thread = get_specific_timestamps_using_llm(
-                f"transcript_{index}_logging.json",
-                os.path.join(script_dir, f"transcript_{index}_logging.json"),
-                sponsors,
-                lock,
-            )
-            logger.info(
-                f"Put prompts into assistant thread openai thread {thread.id} and polling run {run.id}"
-            )
-            min_ms, max_ms, confidence_score = get_run_output(run=run, thread=thread)
-            logger.info(
-                f"Thread {threading.get_ident()} has exited the openai api call for file transcript_{index}_logging.json"
-            )
-            logger.info(
-                f"OpenAI Thread {thread.id} and Run {run.id}:: Finished with values MIN[{min_ms}], MAX[{max_ms}], "
-                f"and Confidence Score [{confidence_score}], transcript_{index}_logging.json"
-            )
+        min_ms, max_ms, confidence_score = get_specific_timestamps_using_llm(
+            f"transcript_{index}_logging.json",
+            os.path.join(script_dir, f"transcript_{index}_logging.json"),
+            sponsors,
+        )
+        logger.info(
+            f"Finished with values MIN[{min_ms}], MAX[{max_ms}], "
+            f"and Confidence Score [{confidence_score}], transcript_{index}_logging.json"
+        )
 
         if min_ms == float("inf") and max_ms == float("-inf"):
             logger.info(
