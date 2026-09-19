@@ -1,4 +1,5 @@
-from pydub import AudioSegment
+import numpy as np
+import soundfile as sf
 from faster_whisper import WhisperModel
 import concurrent.futures
 import json
@@ -264,18 +265,20 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(index, audio_segment, total_segments, sponsors):
-    try:
-        # TODO lets try using openai's model api call here
-        # model = whisper.load_model("tiny", device="cuda")
+def process_audio_segment(index, audio_segment, samplerate, total_segments, sponsors):
+    def to_ms(sample_count):
+        return sample_count * 1000 // samplerate
 
+    def to_samples(ms):
+        return round(ms * samplerate / 1000)
+
+    try:
         model = model_pool.get(block=True)  # Wait until a model is available
         logger.info(
             f"Thread using model {id(model)}, processing transcript_{index}_logging.json"
         )
         segment_path = f"segment_{index}.wav"
-        audio_segment.export(segment_path, format="wav")
-        # audio = whisperx.load_audio(segment_path)
+        sf.write(segment_path, audio_segment, samplerate)
         result_generator, info = model.transcribe(segment_path, language="en")
         # Convert the generator to a list
         result = list(result_generator)
@@ -290,7 +293,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
             )
             logger.info("Searching the first segment because it is likely to have ads")
         elif index == total_segments - 1:
-            segment_duration_ms = len(audio_segment)
+            segment_duration_ms = to_ms(len(audio_segment))
             min_ms = max(
                 0, segment_duration_ms - (3 * 60 * 1000)
             )  # 3 minutes before the end
@@ -390,7 +393,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         #         file.write(segment['text'] + '\n')
         ################################################################
 
-        start_ads_ms = round(min_ms * 1000)  # Convert minutes to milliseconds
+        start_ads_ms = round(min_ms * 1000)  # Convert seconds to milliseconds
         end_ads_ms = round(max_ms * 1000)
 
         if start_ads_ms < 0:
@@ -398,20 +401,19 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
                 f"transcript_{index}_logging.json Start time is less than 0, setting to 0 {start_ads_ms}"
             )
             start_ads_ms = 0
-        if end_ads_ms > len(audio_segment):
+        if end_ads_ms > to_ms(len(audio_segment)):
             logger.info(
                 f"transcript_{index}_logging.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
             )
-            end_ads_ms = len(audio_segment)
-        # audio = AudioSegment.from_wav("sliced_result.wav")
+            end_ads_ms = to_ms(len(audio_segment))
         logger.info(
             f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}_logging.json"
         )
 
-        audio_before_ad = audio_segment[:start_ads_ms]
-        audio_after_ad = audio_segment[end_ads_ms:]
+        audio_before_ad = audio_segment[: to_samples(start_ads_ms)]
+        audio_after_ad = audio_segment[to_samples(end_ads_ms) :]
         # Concatenate audio segments
-        return audio_before_ad + audio_after_ad
+        return np.concatenate((audio_before_ad, audio_after_ad))
 
 
 def remove_ads_from_audio(audio_file, podcast_description):
@@ -423,45 +425,23 @@ def remove_ads_from_audio(audio_file, podcast_description):
     the corresponding audio segments containing the ads. The resulting audio file without
     ads is saved as "finished_audio_without_ads.mp3".
 
-    Note: This function requires the 'whisper' library and the 'AudioSegment' class from
-    the 'pydub' library.
-
     Args:
         None
 
     Returns:
         None
     """
-    wav_file = "result.wav"
-
-    # model = whisper.load_model("tiny", device="cpu")
-    # model = whisper.load_model("tiny", device="cuda")
-    # model = whisper.load_model("medium", device="cuda")
-
     sponsors = update_ad_keywords_with_sponsors(podcast_description)
 
-    audio = AudioSegment.from_mp3(audio_file)
-    original_duration = len(audio) / 1000
-
-    audio.export(wav_file, format="wav")
-
-    # Load the WAV file
-    audio = AudioSegment.from_wav(wav_file)
-
-    # Duration of each segment in milliseconds (10 minutes)
-    segment_duration_ms = 10 * 60 * 1000
-
-    # Duration of audio in milliseconds
-    duration_ms = len(audio)
+    audio, samplerate = sf.read(audio_file, dtype="int16", always_2d=True)
+    original_duration = len(audio) / samplerate
 
     # Split audio into 10-minute segments
+    segment_duration_samples = 10 * 60 * samplerate
     segments = [
-        audio[i : i + segment_duration_ms]
-        for i in range(0, duration_ms, segment_duration_ms)
+        audio[i : i + segment_duration_samples]
+        for i in range(0, len(audio), segment_duration_samples)
     ]
-
-    finished_audio_without_ads = AudioSegment.empty()
-    # if not os.path.exists("transcript.json"):
 
     logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
     initialize_model_pool(check_cuda())
@@ -474,7 +454,7 @@ def remove_ads_from_audio(audio_file, podcast_description):
         # Submit all segments to the executor
         future_to_segment = {
             executor.submit(
-                process_audio_segment, i, segments[i], len(segments), sponsors
+                process_audio_segment, i, segments[i], samplerate, len(segments), sponsors
             ): i
             for i in range(len(segments))
         }
@@ -498,18 +478,18 @@ def remove_ads_from_audio(audio_file, podcast_description):
     logger.info(f"Finished processing audio segments, exporting finished mp3")
     results.sort(key=lambda x: x[0])
     # concatenate the segments without ads
-    finished_audio_without_ads = sum(x[1] for x in results)
+    finished_audio_without_ads = np.concatenate([x[1] for x in results])
     # Save the result
-    finished_audio_without_ads.export("finished_audio_without_ads.mp3", format="mp3")
+    sf.write("finished_audio_without_ads.mp3", finished_audio_without_ads, samplerate)
 
     output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
 
-    # Return the duration of the finished audio in seconds
+    finished_duration = len(finished_audio_without_ads) / samplerate
     logger.info(f"Audio with ads duration: {original_duration} seconds")
     logger.info(
-        f"Finished audio without ads duration: {len(finished_audio_without_ads) / 1000} seconds"
+        f"Finished audio without ads duration: {finished_duration} seconds"
     )
-    return len(finished_audio_without_ads) / 1000, original_duration, output_file_path
+    return finished_duration, original_duration, output_file_path
 
 
 podcast_description = """<p>Today we’ll hear about: </p><ul>\n<li>A young owner looking for help establishing processes in his fast- growing business </li>\n<li>A woman looking to fire an employee who won’t see it coming </li>\n<li>Dave Ramsey’s take on Home Depot requiring corporate employees to work in retail stores </li>\n<li>A business owner looking for advice on profit sharing with her team </li>\n</ul><p> </p><p><strong>Next Steps</strong> </p><ul>\n<li>📞 Have a question for the show? Call 844-944-1070 or send us a message: <a href=\"https://ter.li/ask-us\">https://ter.li/ask-us</a> </li>\n<li>📚 Learn about the EntreLeadership System: <a href=\"https://ter.li/system-p\">https://ter.li/system-p</a> </li>\n<li>💻 Get EntreLeadership Elite for your business: <a href=\"https://ter.li/elite-p\">https://ter.li/elite-p</a> </li>\n<li>✉️ Sign up to receive tactical tools, advice and resources in your inbox every week: <a href=\"https://ter.li/enl\">https://ter.li/enl</a> </li>\n<li>🏢 Attend EntreLeadership Summit: <a href=\"https://ter.li/summit\">https://ter.li/summit</a>  </li>\n<li>🎤 Attend EntreLeadership Master Series: <a href=\"https://ter.li/masterseries\">https://ter.li/masterseries</a>  </li>\n</ul><p> </p><p><strong>Offers From Today's Sponsors</strong> </p><ul>\n<li>💼 Go to<a href=\"https://www.belaysolutions.com/Entreleadership\"> <strong>Belay Solutions</strong></a> or text ENTRE to 55123 for their free resource! </li>\n<li>💻 Visit<a href=\"https://www.netsuite.com/Ramsey\"> <strong>NetSuite</strong></a> today to learn more </li>\n<li>🧾 Visit<a href=\"https://www.payority.com/entreleadership\"> </a><a href=\"https://www.payority.com/entreleadership\"><strong>Payority</strong></a> for a free consultation! </li>\n<li>📝 Use code entre15 to get 15% off your first year of <a href=\"https://www.trainual.com/entre\"><strong>Trainual</strong></a> </li>\n</ul><p> </p><p><strong>Listen to More From Ramsey Network</strong> </p><p>🎙️ <a href=\"https://ter.li/gpny1a\">The Ramsey Show</a> </p><p>💸 <a href=\"https://ter.li/430qk2\">The Ramsey Show Highlights</a> </p><p><strong>🧠</strong> <a href=\"https://ter.li/w9syza\">The Dr. John Delony Show</a> </p><p>🍸 <a href=\"https://ter.li/k3waa1\">Smart Money Happy Hour</a> </p><p>💡 <a href=\"https://ter.li/j3ahu7\">The Rachel Cruze Show</a> </p><p>💰 <a href=\"https://ter.li/99j2kb\">George Kamel</a> </p><p>💼 <a href=\"https://ter.li/puh2qh\">The Ken Coleman Show</a> </p><p> </p><p><a href=\"https://www.megaphone.fm/adchoices\">Learn More About Your Ad Choices</a>  </p><p><a href=\"https://www.ramseysolutions.com/company/policies/privacy-policy\">Ramsey Solutions Privacy Policy</a> </p>"""
