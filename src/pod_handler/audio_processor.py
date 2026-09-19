@@ -474,6 +474,9 @@ def remove_ads_from_audio(audio_file, podcast_description):
             except Exception as exc:
                 logger.error(f"Segment {segment_index} generated an exception: {exc}")
                 logger.error(traceback.format_exc())
+                # Keep the original segment rather than dropping this chunk of
+                # the episode from the output
+                results.append((segment_index, segments[segment_index]))
         # executor.shutdown(wait=True)
     logger.info(f"Finished processing audio segments, exporting finished mp3")
     results.sort(key=lambda x: x[0])

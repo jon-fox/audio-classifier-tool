@@ -1,5 +1,7 @@
 import asyncio
+import atexit
 import os
+import threading
 
 os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
@@ -21,6 +23,32 @@ if LLM_MODEL.startswith("openai") and not os.getenv("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = get_setting(settings.OPENAI_API_KEY)
 
 NO_DETECTION = [float("inf"), float("-inf"), 0]
+
+# All agent calls run on one persistent background event loop. The agents'
+# async HTTP connection pool is bound to the loop it first runs on, so calls
+# from worker threads must share a single live loop rather than each creating
+# and closing their own.
+_loop = None
+_loop_thread = None
+_loop_lock = threading.Lock()
+
+
+def _run(coro):
+    global _loop, _loop_thread
+    with _loop_lock:
+        if _loop is None:
+            _loop = asyncio.new_event_loop()
+            _loop_thread = threading.Thread(target=_loop.run_forever, daemon=True)
+            _loop_thread.start()
+            atexit.register(_shutdown_loop)
+    return asyncio.run_coroutine_threadsafe(coro, _loop).result()
+
+
+def _shutdown_loop():
+    if _loop is not None:
+        _loop.call_soon_threadsafe(_loop.stop)
+        _loop_thread.join(timeout=5)
+        _loop.close()
 
 
 class Timestamp(BaseModel):
@@ -108,9 +136,7 @@ def get_specific_timestamps_using_llm(filename, path, sponsors, lock=None):
     with open(path, encoding="utf-8") as f:
         transcript = f.read()
 
-    # asyncio.run (rather than run_sync) so each worker thread's event loop is
-    # closed cleanly instead of leaking until garbage collection
-    result = asyncio.run(
+    result = _run(
         _get_detection_agent().run(
             f"{get_detection_config().get_detection_instructions(sponsors)}"
             f"\n\nTranscript segments (JSON):\n{transcript}"
@@ -126,7 +152,7 @@ def fetch_sponsors(podcast_description):
         return []
     logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
     try:
-        result = asyncio.run(_get_sponsor_agent().run(podcast_description))
+        result = _run(_get_sponsor_agent().run(podcast_description))
         sponsors = result.output.sponsors
         logger.info(f"Sponsors: {sponsors}")
         return sponsors
