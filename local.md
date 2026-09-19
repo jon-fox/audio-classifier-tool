@@ -14,6 +14,8 @@ PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url"
 
 Optional: `export DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` to get processing alerts in Discord.
 
+By default the app detects and cuts ads (`configs/ads.toon`). To target something else, copy it, edit the keywords and prompts, and select it with `--detection <name|path>` (or `DETECTION_CONFIG`) — or inject directly with `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS`.
+
 ## Docker
 
 The image defaults to local mode:

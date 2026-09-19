@@ -13,11 +13,7 @@ from src.logger.logger_setup import logger
 import json
 from src.config import settings
 from src.config.settings import get_setting
-from src.config.prompts import (
-    ad_checker_assistant_instructions,
-    sponsor_instructions,
-    get_ad_checker_instructions,
-)
+from src.config.detection_config import get_detection_config
 
 OPENAI_API_KEY = get_setting(settings.OPENAI_API_KEY)
 
@@ -37,7 +33,7 @@ def _create_assistant():
 
     assistant = client.beta.assistants.create(
         name="Podcast Advertisement Recognizer",
-        instructions=ad_checker_assistant_instructions,
+        instructions=get_detection_config().assistant_instructions,
         tools=[{"type": "file_search"}],
         temperature=0,
         #   model="gpt-4-turbo-preview",
@@ -98,7 +94,7 @@ def _create_thread(filename, path, sponsors, lock):
         messages=[
             {
                 "role": "user",
-                "content": get_ad_checker_instructions(sponsors),
+                "content": get_detection_config().get_detection_instructions(sponsors),
             }
         ],
         tool_resources={"file_search": {"vector_store_ids": [vector_store.id]}},
@@ -327,11 +323,14 @@ def extract_sponsors(response_content):
 
 
 def fetch_sponsors(podcast_description):
+    if not get_detection_config().sponsor_instructions:
+        logger.info("No sponsor_instructions in detection config, skipping")
+        return []
     logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
     try:
         response = client.responses.create(
             model=OPENAI_MODEL,
-            instructions=sponsor_instructions,
+            instructions=get_detection_config().sponsor_instructions,
             input=podcast_description,
             temperature=0,
         )

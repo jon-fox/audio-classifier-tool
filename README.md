@@ -40,6 +40,13 @@ Config resolves from environment variables first. Setting `APP_MODE=aws` enables
 
 Without `APP_MODE=aws`, only `OPENAI_API_KEY` is needed — see [local.md](local.md).
 
+### Detection Config
+
+What the app finds and cuts is defined by a [TOON](https://github.com/toon-format/spec) config (keywords + prompts) in the top-level `configs/` directory, defaulting to `configs/ads.toon`:
+
+- `--detection <name|path>` (CLI) or `DETECTION_CONFIG` (env) — a config name in `configs/` or a path to a `.toon` file
+- `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS` — inject the prompt or keyword list directly (keywords as a JSON array or comma-separated), overriding the file
+
 ### GPU/CUDA Setup
 
 ```bash

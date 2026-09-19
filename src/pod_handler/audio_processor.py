@@ -8,7 +8,6 @@ import os
 import re
 import time
 import traceback
-import argparse
 from queue import Queue
 from src.config.constants import *
 from src.detection.llm_detector import (
@@ -16,6 +15,7 @@ from src.detection.llm_detector import (
     get_run_output,
     fetch_sponsors,
 )
+from src.config.detection_config import get_detection_config
 from src.logger.logger_setup import logger
 from src.alerts.discord_alerts import send_error_alert
 import threading
@@ -35,229 +35,17 @@ lock = threading.RLock()
 
 # DOWNLOAD_DIR = '/mnt/h/Developer_Workspace/gpodder/downloads/'
 
-ad_keywords = [
-    "signing up",
-    "use the code",
-    "support the show",
-    "use code",
-    "this episode is brought to you by",
-    "this show is brought to you by",
-    r"support for \w+ comes from",
-    r"i've been using \w+",
-    "supplies are limited",
-    r"and enter code \w+ at checkout",
-    "brought to you",
-    "this episode is",
-    "sponsors",
-    "sponsor",
-    "click the link in the description to find out more",
-    "sponsored by",
-    "advertisement",
-    r"visit [\w-]+\.com to save",
-    "use the promo code",
-    r"visit [-\w.]+ to learn more",
-    "sponsoring",
-    "limited time",
-    "download the app",
-    "paid for by",
-    r"get \d+% off your",
-    r"save \d+% on your",
-    r"\d+% discount on your",
-    r"get \d+% off",
-    "take a moment to thank our sponsor",
-    "purchase",
-    "sale",
-    "checkout",
-    "special offer",
-    "discount",
-    "discount code",
-    "promo code",
-    "promo",
-    "code",
-    "deal",
-    "offer",
-    "subscription service that",
-    "exclusive offer",
-    r"limited[-\s]?time deal",
-    r"limited[-\s]?time offer",
-    r"limited[-\s]?time discount",
-    r"limited[-\s]?time sale",
-    "partnering",
-    "partner",
-    "partnered",
-    "promotion",
-    "link in the episode description",
-    "highly recommend",
-    "you have to try",
-    "shop",
-    "shop now",
-    "exclusive deal",
-    "affiliate link",
-    "commission earned",
-    "as an affiliate",
-    "partner program",
-    "affiliate disclosure",
-    "brought to you in part by",
-    "our friends at",
-    "a quick word from our sponsors",
-    r"listener[-\s]?supported",
-    "thanks to our sponsor",
-    "subscribe today",
-    "try it for free",
-    "sign up now",
-    "don't miss out",
-    "order now",
-    "learn more",
-    "click here",
-    "visit now",
-    "explore more",
-    "read more",
-    "get your first month free",
-    "free trial",
-    "no obligation",
-    r"money[-\s]?back guarantee",
-    "best price",
-    "partnered with",
-    "in collaboration with",
-    "powered by",
-    "endorsed by",
-    "brought to you by our partners",
-    r"(visit|check\s(out|us\sat|our\swebsite)|go\sto)\s[\w-]+(\.[a-z]{2,})",
-    "act now",
-    "offer valid until",
-    "use our code",
-    "check the link below",
-    "click to learn more",
-    "brought to you in partnership with",
-    "save big",
-    "big savings",
-    "limited stock",
-    "early bird offer",
-    "new customers only",
-    "join now",
-    "exclusive for listeners",
-    "refer a friend",
-    "referral bonus",
-    "sign up for exclusive perks",
-    "try it today",
-    "as seen on",
-    "number one choice",
-    "voted best by",
-    "receive your",
-    "guaranteed results",
-    "award winning",
-    "customer favorite",
-    "see why everyone loves",
-    "start your journey",
-    "get access now",
-    "unbeatable value",
-    "get started today",
-    "your exclusive chance",
-    "contact us for more",
-    "fast delivery",
-    "don't delay",
-    "best in class",
-    "industry leading",
-    "on sale now",
-    "your satisfaction guaranteed",
-    # Gambling & Betting
-    "bet now",
-    "place your bets",
-    "gamble responsibly",
-    "must be 18 or older",
-    "download the draftkings app",
-    "odds boost",
-    "promo odds",
-    "parlay insurance",
-    # Nicotine / Vaping
-    "nicotine pouches",
-    "vape pods",
-    "tobacco-free nicotine",
-    "switch to vaping",
-    "smokeless alternative",
-    "juul compatible",
-    # Health / Pharma / Supplements
-    "telehealth visit",
-    "online doctor",
-    "rx delivered",
-    "consult a licensed physician",
-    "clinically proven results",
-    "fda cleared",
-    "lab-tested",
-    "doctor-formulated",
-    "ashwagandha gummies",
-    "adaptogen blend",
-    "hormone balancing",
-    # Adult / Intimate Wellness
-    "bedroom confidence",
-    "boost libido",
-    "feminine care",
-    "testosterone support",
-    "sexual wellness",
-    "lasting longer",
-    "increase stamina",
-    "intimate oil",
-    "male enhancement",
-    "natural male enhancement",
-    # Beauty & Grooming
-    "anti-aging serum",
-    "retinol cream",
-    "collagen peptides",
-    "hair thickening",
-    "hair-loss solution",
-    "dermatologist recommended",
-    "clean beauty",
-    "spf moisturizer",
-    # Food & Beverage Delivery
-    "meal kit",
-    "fresh ingredients delivered",
-    "chef-curated recipes",
-    "coffee subscription",
-    "wine club",
-    "snack box",
-    "first box free",
-    # Finance & Investing
-    "robo-advisor",
-    "cryptocurrency exchange",
-    "commission-free trading",
-    "investing app",
-    "refinance your loan",
-    "credit repair",
-    "cash-back card",
-    # Tech & Cybersecurity
-    "vpn service",
-    "password manager",
-    "cloud backup",
-    "identity theft protection",
-    "malware scan",
-    "data breach monitoring",
-    "secure browser",
-    # Education & Career
-    "coding bootcamp",
-    "online mba",
-    "certificate program",
-    "career coaching",
-    "learn to code",
-    "masterclass",
-    "course bundle",
-    # Travel & Mobility
-    "discount flights",
-    "hotel deals",
-    "vacation package",
-    "airport transfer",
-    "ride credit",
-    "e-bike subscription",
-    # Charity & Political Appeals
-    "donate today",
-    "matching gift",
-    "join the movement",
-    "support our mission",
-    "paid for by the committee",
-    "grassroots campaign",
-]
+_keywords_compiled = None
 
-# compiled regex patterns for ad keywords
-ad_keywords_compiled = [re.compile(pattern, re.IGNORECASE) for pattern in ad_keywords]
+
+def get_keywords_compiled():
+    global _keywords_compiled
+    if _keywords_compiled is None:
+        _keywords_compiled = [
+            re.compile(pattern, re.IGNORECASE)
+            for pattern in get_detection_config().keywords
+        ]
+    return _keywords_compiled
 
 # Specify the relative path to the file
 
@@ -336,7 +124,7 @@ def find_ad_timestamps(transcript, sponsors):
         # high_certainty = any(company.lower() in text for company in ad_companies)
 
         contains_ad = any(company in text for company in sponsors) or any(
-            pattern.search(text) for pattern in ad_keywords_compiled
+            pattern.search(text) for pattern in get_keywords_compiled()
         )
 
         if contains_ad:
@@ -430,22 +218,6 @@ def extract_segments(segments, start_time, end_time):
 
 # set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
 # export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
-# python pod_handler/audio_processor.py
-# python audio_processor.py --device cuda
-
-# Parse command-line arguments
-parser = argparse.ArgumentParser(description="Process audio segments.")
-parser.add_argument(
-    "--device",
-    type=str,
-    default="cpu",
-    help="Device to use for processing (cuda or cpu)",
-)
-args = parser.parse_args()
-
-# Use the specified device for processing
-device = args.device
-
 # Initialize model_pool at the module level
 model_pool = Queue()
 

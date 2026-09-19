@@ -1,6 +1,8 @@
+import argparse
 import os
 from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
+from src.config.detection_config import set_detection_config
 import json
 import sys
 from datetime import datetime
@@ -321,6 +323,18 @@ def poll_sqs():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="AudioClassifier: detect and cut content from podcast audio"
+    )
+    parser.add_argument(
+        "--detection",
+        help="detection config: a name in configs/ (default: ads) or a path to a .toon file",
+    )
+    args = parser.parse_args()
+    if args.detection:
+        config = set_detection_config(args.detection)
+        logger.info(f"Using detection config: {config.name}")
+
     if not AWS_ENABLED:
         # Local mode: process a single episode from the PAYLOAD env var, then exit
         payload = os.getenv("PAYLOAD")

@@ -26,6 +26,7 @@ RUN uv sync --frozen --no-dev
 RUN /app/.venv/bin/python -c "from faster_whisper import WhisperModel; import os; os.makedirs('/app/local_models/tiny', exist_ok=True); WhisperModel('tiny', download_root='/app/local_models/tiny')"
 
 COPY src/ /app/src
+COPY configs/ /app/configs
 
 ENV PYTHONPATH=/app
 
