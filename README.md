@@ -1,6 +1,4 @@
-# AudioClassifier - AI-Powered Podcast Ad Removal
-
-> AudioClassifier (formerly JusSkipIt) originally ran as a hosted service at jusskipit.com. The engine is now open source and can be self-hosted for podcast ad removal.
+# AudioClassifier - Dynamice Classifier used for Audio Segment Identification and removal
 
 ## How It Works
 
