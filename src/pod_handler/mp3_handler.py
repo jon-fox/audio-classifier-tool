@@ -31,7 +31,6 @@ def get_mp3_file(mp3_dir, filename):
 def mp3_handler(
     podcast_name,
     podcast_description,
-    cdn_url,
     hashkey,
     audio_url,
     episode_data={},
@@ -144,7 +143,7 @@ def mp3_handler(
                     episode_guid=getattr(episode_data, "guid", "") or "",
                     episode_hash_name=saved_episode_name or "",
                     episode_url=audio_url,
-                    cdn_url=cdn_url,
+                    cdn_url=s3_location,
                     image_url=getattr(episode_data, "imageUrl", "") or "",
                     api_data=json.dumps(json_data) or "",
                     api_episode_hash=getattr(episode_data, "hash", "") or "",
@@ -256,7 +255,6 @@ def mp3_handler(
             additional_info={
                 "hashkey": hashkey,
                 "audio_url": audio_url,
-                "cdn_url": cdn_url,
             },
         )
         # Update status to FAILED before raising

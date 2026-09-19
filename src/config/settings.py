@@ -21,8 +21,6 @@ DISCORD_WEBHOOK_URL = Setting(
     "DISCORD_WEBHOOK_URL", "/application/discord/errors_webhook"
 )
 APP_STORAGE_BUCKET = Setting("APP_STORAGE_BUCKET", "/app/app_storage_bucket")
-CDN_BASE_URL = Setting("CDN_BASE_URL", "/cloudfront/distribution/url")
-SQS_URL = Setting("SQS_URL", "/sqs/audio_processing/url")
 
 
 def get_setting(setting):

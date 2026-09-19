@@ -1,41 +1,47 @@
-# AudioClassifier - Dynamice Classifier used for Audio Segment Identification and removal
+# AudioClassifier - Dynamic Classifier used for Audio Segment Identification and Removal
 
-## How It Works
-
-- Downloads an episode (via `PAYLOAD` locally, or polled from SQS in AWS mode)
-- Transcribes with faster-whisper (GPU-accelerated, CPU works too)
-- Detects target segments with OpenAI — ads by default
-- Cuts them and re-assembles the audio
-- Writes output to `output/` locally, or S3/CloudFront + DynamoDB in AWS mode
+Runs locally by default: one episode in, cleaned audio out. Needs an OpenAI API key and `ffmpeg`.
 
 ## Quick Start
 
-See [local.md](local.md) — a single episode needs only an OpenAI key and `ffmpeg`.
+```bash
+uv sync
+export OPENAI_API_KEY=<your-key>
+export BASE_PATH=. PYTHONPATH=$PWD
+mkdir -p downloads output
 
-## Configuration
+PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
+  uv run python src/main.py
+```
 
-Config comes from env vars; with `APP_MODE=aws`, missing values fall back to SSM Parameter Store:
+The cleaned file lands in `output/`. Or with Docker:
 
-| Env var | SSM fallback |
-|---------|--------------|
-| `OPENAI_API_KEY` | `/openai/api_key` |
-| `DISCORD_WEBHOOK_URL` (needs `DISCORD_ALERTS=true`) | `/application/discord/errors_webhook` |
-| `APP_STORAGE_BUCKET` | `/app/app_storage_bucket` |
-| `CDN_BASE_URL` | `/cloudfront/distribution/url` |
-| `SQS_URL` | `/sqs/audio_processing/url` |
+```bash
+docker build -t audioclassifier-app .
+docker run --gpus all \
+  -e OPENAI_API_KEY=<your-key> \
+  -e PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
+  -v "$(pwd)/output:/app/output" \
+  audioclassifier-app
+```
 
-### Detection
+Drop `--gpus all` to run on CPU (slower). More in [local.md](local.md).
+
+## How It Works
+
+- Downloads the episode from the `PAYLOAD` JSON
+- Transcribes with faster-whisper (GPU-accelerated, CPU works too)
+- Detects target segments with OpenAI — ads by default
+- Cuts them and re-assembles the audio
+
+## Detection
 
 `configs/ads.toon` ([TOON](https://github.com/toon-format/spec)) defines the keywords and prompts. Point at your own with `--detection <name|path>` or `DETECTION_CONFIG`, or override inline with `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS`.
 
-## AWS Mode
+## Options
 
-`APP_MODE=aws` turns on the worker: config from SSM, results to S3/DynamoDB, work polled from SQS. All AWS code is isolated under `src/cloud/`. Instances need NVIDIA drivers + Docker.
-
-Workflows (manual dispatch only):
-
-- `build.yml` — builds the Docker image, no AWS required
-- `deploy-aws.yml` — pushes to ECR and runs the worker on a GPU EC2 instance
+- `DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` — processing alerts in Discord
+- `APP_MODE=aws` — optional cloud mode: config from SSM, results to S3/DynamoDB (code isolated under `src/cloud/`); `deploy-aws.yml` runs one-shot jobs on a GPU EC2 instance
 
 ## License
 
