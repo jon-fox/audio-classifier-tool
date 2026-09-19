@@ -11,7 +11,7 @@ import traceback
 import argparse
 from queue import Queue
 from src.config.constants import *
-from src.detection.ai_ad_checker import (
+from src.detection.llm_detector import (
     get_specific_timestamps_using_llm,
     get_run_output,
     fetch_sponsors,
