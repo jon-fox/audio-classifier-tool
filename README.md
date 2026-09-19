@@ -1,96 +1,40 @@
 # AudioClassifier - AI-Powered Podcast Ad Removal
 
-> AudioClassifier (formerly JusSkipIt) originally ran as a hosted service at jusskipit.com. The service has been retired, but the full processing engine is open source here and can be self-hosted for podcast ad removal.
+> AudioClassifier (formerly JusSkipIt) originally ran as a hosted service at jusskipit.com. The engine is now open source and can be self-hosted for podcast ad removal.
 
-## Overview
+## How It Works
 
-AudioClassifier automatically detects and removes advertisements from podcast audio files using AI transcription. This is the core processing engine:
+- Downloads an episode (via `PAYLOAD` locally, or polled from SQS in AWS mode)
+- Transcribes with faster-whisper (GPU-accelerated, CPU works too)
+- Detects target segments with OpenAI — ads by default
+- Cuts them and re-assembles the audio
+- Writes output to `output/` locally, or S3/CloudFront + DynamoDB in AWS mode
 
-- Downloads podcast episodes from audio URLs (a single episode via `PAYLOAD`, or polled from SQS in AWS mode)
-- Transcribes audio with faster-whisper (GPU-accelerated, runs on CPU too)
-- Identifies advertisement segments using OpenAI
-- Cuts the ads and re-assembles the audio
-- Writes cleaned files to `output/` (local) or S3/CloudFront with status in DynamoDB (AWS mode)
+## Quick Start
 
-## Setup & Configuration
+See [local.md](local.md) — a single episode needs only an OpenAI key and `ffmpeg`.
 
-### Environment Variables
+## Configuration
 
-```bash
-# AWS Credentials
-export AWS_SHARED_CREDENTIALS_FILE=~/.aws/credentials
-export AWS_CONFIG_FILE=~/.aws/config
+Config comes from env vars; with `APP_MODE=aws`, missing values fall back to SSM Parameter Store:
 
-# Application Paths
-export PYTHONPATH="${PYTHONPATH}:$(pwd)"
-export BASE_PATH=.   # working directory for downloads/output (defaults to /app in the container)
-```
-
-### Configuration
-
-Config resolves from environment variables first. Setting `APP_MODE=aws` enables the AWS integrations — config falls back to SSM Parameter Store, results go to S3/DynamoDB, and the app polls SQS for work:
-
-| Env var | SSM fallback (`APP_MODE=aws`) |
-|---------|-------------------------------|
+| Env var | SSM fallback |
+|---------|--------------|
 | `OPENAI_API_KEY` | `/openai/api_key` |
 | `DISCORD_WEBHOOK_URL` (needs `DISCORD_ALERTS=true`) | `/application/discord/errors_webhook` |
 | `APP_STORAGE_BUCKET` | `/app/app_storage_bucket` |
 | `CDN_BASE_URL` | `/cloudfront/distribution/url` |
 | `SQS_URL` | `/sqs/audio_processing/url` |
 
-Without `APP_MODE=aws`, only `OPENAI_API_KEY` is needed — see [local.md](local.md).
+### Detection
 
-### Detection Config
+`configs/ads.toon` ([TOON](https://github.com/toon-format/spec)) defines the keywords and prompts. Point at your own with `--detection <name|path>` or `DETECTION_CONFIG`, or override inline with `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS`.
 
-What the app finds and cuts is defined by a [TOON](https://github.com/toon-format/spec) config (keywords + prompts) in the top-level `configs/` directory, defaulting to `configs/ads.toon`:
+## AWS Mode
 
-- `--detection <name|path>` (CLI) or `DETECTION_CONFIG` (env) — a config name in `configs/` or a path to a `.toon` file
-- `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS` — inject the prompt or keyword list directly (keywords as a JSON array or comma-separated), overriding the file
+`APP_MODE=aws` turns on the worker: config from SSM, results to S3/DynamoDB, work polled from SQS. All AWS code is isolated under `src/cloud/`. Instances need NVIDIA drivers + Docker.
 
-### GPU/CUDA Setup
+Workflows (manual dispatch only):
 
-```bash
-# CUDA library path, required for GPU-accelerated transcription
-export LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:$LD_LIBRARY_PATH
-```
-
-## Local Testing
-
-See [local.md](local.md) to run the ad-removal pipeline on a single episode without the AWS worker infrastructure.
-
-## Infrastructure & Deployment
-
-### Terraform Backend
-
-```bash
-terraform init -backend-config="bucket=<your-tf-state-bucket>"
-```
-
-### AWS ECS Agent Setup
-
-```bash
-sudo yum install -y ecs-init
-sudo systemctl start ecs
-sudo systemctl status ecs
-```
-
-### AMI Requirements
-
-Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS Deep Learning AMI).
-
-## CI/CD
-
-Both workflows are manual dispatch only:
-
-- `build.yml`: builds the Docker image (no AWS required)
-- `deploy-aws.yml`: pushes to ECR and runs the SQS worker on a GPU EC2 instance
-
-## Architecture
-- **Container-based**: Docker with NVIDIA CUDA support
-- **Cloud integration**: optional, isolated under `src/cloud/` (AWS today: S3, DynamoDB, SQS, Lambda, SSM), enabled with `APP_MODE=aws`
-- **AI Processing**: GPU-accelerated transcription for faster ad detection
-
-## Quick Start
-
-1. Local single-episode runs (native or Docker): see [local.md](local.md)
-2. AWS worker mode: set `APP_MODE=aws` with the SSM parameters above — the container then polls SQS for processing requests
+- `build.yml` — builds the Docker image, no AWS required
+- `deploy-aws.yml` — pushes to ECR and runs the worker on a GPU EC2 instance

@@ -1,6 +1,6 @@
 # Local Testing
 
-Process a single episode with no AWS account — just an OpenAI API key and `ffmpeg`. The episode to process is passed as a `PAYLOAD` JSON env var; the cleaned file lands in `output/`.
+Process a single episode — needs only an OpenAI API key and `ffmpeg`. The cleaned file lands in `output/`.
 
 ```bash
 uv sync
@@ -8,25 +8,24 @@ export OPENAI_API_KEY=<your-key>
 export BASE_PATH=. PYTHONPATH=$PWD
 mkdir -p downloads output
 
-PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<episode-mp3-url>"}' \
+PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
   uv run python src/main.py
 ```
 
-Optional: `export DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` to get processing alerts in Discord.
-
-By default the app detects and cuts ads (`configs/ads.toon`). To target something else, copy it, edit the keywords and prompts, and select it with `--detection <name|path>` (or `DETECTION_CONFIG`) — or inject directly with `DETECTION_INSTRUCTIONS` / `DETECTION_KEYWORDS`.
-
 ## Docker
-
-The image defaults to local mode:
 
 ```bash
 docker build -t audioclassifier-app .
 docker run --gpus all \
   -e OPENAI_API_KEY=<your-key> \
-  -e PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<episode-mp3-url>"}' \
+  -e PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
   -v "$(pwd)/output:/app/output" \
   audioclassifier-app
 ```
 
-Drop `--gpus all` to run on CPU (the Whisper `tiny` model is fine on CPU, just slower). The same container works on any rented GPU box — RunPod, Modal, a gaming PC — no cloud integration needed.
+Drop `--gpus all` to run on CPU (slower). The same container runs on any GPU box — RunPod, Modal, a gaming PC.
+
+## Options
+
+- `--detection <name|path>` — detect something other than ads (default: `configs/ads.toon`)
+- `DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` — processing alerts in Discord
