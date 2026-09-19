@@ -11,7 +11,12 @@ from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
 
-from src.config.constants import CONFIDENCE_SCORE, LLM_MODEL
+from src.config.constants import (
+    CONFIDENCE_SCORE,
+    LLM_MODEL,
+    MERGE_GAP_SECONDS,
+    MIN_CUT_SECONDS,
+)
 from src.logger.logger_setup import logger
 from src.config import settings
 from src.config.settings import get_setting
@@ -22,8 +27,6 @@ from src.config.detection_config import get_detection_config
 # own standard env vars (ANTHROPIC_API_KEY, ...).
 if LLM_MODEL.startswith("openai") and not os.getenv("OPENAI_API_KEY"):
     os.environ["OPENAI_API_KEY"] = get_setting(settings.OPENAI_API_KEY)
-
-NO_DETECTION = [float("inf"), float("-inf"), 0]
 
 # All agent calls run on one persistent background event loop. The agents'
 # async HTTP connection pool is bound to the loop it first runs on, so calls
@@ -96,32 +99,33 @@ def _get_sponsor_agent():
 
 
 def evaluate_detection(result):
-    """Apply confidence/duration rules to a DetectionResult.
+    """Validate a DetectionResult into a list of [start, end] second ranges to cut.
 
-    Returns [min_timestamp, max_timestamp, confidence_score], or NO_DETECTION
-    when the segment should be kept.
+    Ranges below the confidence threshold are discarded wholesale; nearby
+    ranges are merged; ranges shorter than MIN_CUT_SECONDS are dropped
+    individually.
     """
-    if not result.timestamps:
-        logger.info("No timestamps provided. Returning default values.")
-        return NO_DETECTION
-
-    min_timestamp = min(t.start for t in result.timestamps)
-    max_timestamp = max(t.end for t in result.timestamps)
-    confidence_score = result.confidence_score
-    duration = max_timestamp - min_timestamp
-
-    if confidence_score > 80 and duration > 15:
+    if result.confidence_score < CONFIDENCE_SCORE or not result.timestamps:
         logger.info(
-            f"Confidence Score: {confidence_score}, Timestamps: {min_timestamp} to {max_timestamp}"
+            f"Keeping segment (confidence: {result.confidence_score}, "
+            f"ranges: {len(result.timestamps)})"
         )
-    elif confidence_score < CONFIDENCE_SCORE or duration < 20:
-        logger.info(
-            f"Confidence score below {CONFIDENCE_SCORE} or segment under 20 seconds "
-            f"(confidence: {confidence_score}, duration: {duration})"
-        )
-        return NO_DETECTION
+        return []
 
-    return [min_timestamp, max_timestamp, confidence_score]
+    ranges = sorted([t.start, t.end] for t in result.timestamps if t.end > t.start)
+    merged = []
+    for start, end in ranges:
+        if merged and start - merged[-1][1] <= MERGE_GAP_SECONDS:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+
+    kept = [r for r in merged if r[1] - r[0] >= MIN_CUT_SECONDS]
+    logger.info(
+        f"Confidence {result.confidence_score}: {len(kept)} cut range(s) "
+        f"after merging/filtering: {kept}"
+    )
+    return kept
 
 
 @backoff.on_exception(
@@ -131,9 +135,9 @@ def evaluate_detection(result):
     giveup=lambda e: e.status_code != 429,
 )
 def get_specific_timestamps_using_llm(filename, path, sponsors, lock=None):
-    """Ask the LLM for ad timestamps in a transcript segment.
+    """Ask the LLM for ad ranges in a transcript segment.
 
-    Returns [min_timestamp, max_timestamp, confidence_score].
+    Returns a list of [start, end] second ranges to cut (empty = keep all).
     """
     logger.info(f"Requesting timestamps for {filename}, sponsors: {sponsors}")
 
@@ -148,12 +152,12 @@ def get_specific_timestamps_using_llm(filename, path, sponsors, lock=None):
     )
     output = result.output
     logger.info(f"Detection result for {filename}: {output}")
-    decision = evaluate_detection(output)
-    _write_decision(path, output, decision)
-    return decision
+    cut_ranges = evaluate_detection(output)
+    _write_decision(path, output, cut_ranges)
+    return cut_ranges
 
 
-def _write_decision(transcript_path, output, decision):
+def _write_decision(transcript_path, output, cut_ranges):
     decision_path = transcript_path.replace(".json", "_decision.json")
     try:
         with open(decision_path, "w", encoding="utf-8") as f:
@@ -162,10 +166,8 @@ def _write_decision(transcript_path, output, decision):
                     "confidence_score": output.confidence_score,
                     "timestamps": [t.model_dump() for t in output.timestamps],
                     "reasoning": output.reasoning,
-                    "action": "keep" if decision == NO_DETECTION else "cut",
-                    "cut_range_seconds": (
-                        None if decision == NO_DETECTION else decision[:2]
-                    ),
+                    "action": "cut" if cut_ranges else "keep",
+                    "cut_ranges_seconds": cut_ranges,
                 },
                 f,
                 indent=2,

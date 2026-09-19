@@ -70,7 +70,9 @@ def mp3_handler(
             )
             raise e
 
-        episode_output_dir = os.path.join(FINISHED_MP3_DIR, podcast_name)
+        episode_output_dir = os.path.join(
+            FINISHED_MP3_DIR, podcast_name, write_to_db.sanitize_name(episode_name)
+        )
 
         try:
             podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(

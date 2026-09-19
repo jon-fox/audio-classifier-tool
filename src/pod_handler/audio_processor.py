@@ -25,13 +25,6 @@ import threading
 # import whisper
 # import re
 
-# buffers to try and capture ad time after keyword is mentioned
-# be careful with these, results in larger token cost to ai model
-START_AD_BUFFER = 45
-END_AD_BUFFER = 45
-
-MINIMUM_AD_SKIP_TIME = 15  # Minimum time to skip an ad segment
-
 # lock = threading.Lock()
 lock = threading.RLock()
 
@@ -82,140 +75,17 @@ def update_ad_keywords_with_sponsors(podcast_description):
     return []
 
 
-# Find positions of ad-related keywords in the transcription
-def find_ad_timestamps(transcript, sponsors):
-    """
-    Find the timestamps of ad segments in a transcription.
-
-    Args:
-        transcription (dict): The transcription data containing segments.
-        ad_keywords (list): A list of keywords to search for in the transcription.
-        ad_companies (list): A list of company names to search for in the transcription.
-
-    Returns:
-        tuple: A tuple containing the ad timestamps dictionary,
-        the minimum start time, and the maximum end time.
-
-    The ad timestamps dictionary has the following structure:
-    {
-        'keyword1': [[start1, end1], [start2, end2], ...],
-        'keyword2': [[start1, end1], [start2, end2], ...],
-        ...
-    }
-    The minimum start time and maximum end time represent
-    the overall time range of the ad segments found.
-    """
-
-    # Assuming transcript is a dictionary
-    # keys = list(transcript[0].keys())
-    # logger.info("############################################")
-    # logger.info(f"First few of transcript keys: {keys[:1]}")
-    # logger.info(f"Transcript: {transcript}")
-    # logger.info("############################################")
-
-    min_ms = float("inf")  # Positive infinity
-    max_ms = float("-inf")  # Negative infinity
-
-    # for logging
-    current_block = None
-
-    # TODO need to capture the words that kicked off the ad segment
+# Cheap gate: only segments with keyword/sponsor hits go to the LLM
+def has_ad_keywords(transcript, sponsors):
     for t_segment in transcript:
         text = t_segment.text.lower()
-
-        # high_certainty = any(company.lower() in text for company in ad_companies)
-
-        contains_ad = any(company in text for company in sponsors) or any(
+        if any(company in text for company in sponsors) or any(
             pattern.search(text) for pattern in get_keywords_compiled()
-        )
-
-        if contains_ad:
-            start = max(0, t_segment.start - START_AD_BUFFER)
-            end = t_segment.end + END_AD_BUFFER
-
-            # logging ad segment keywords to file
-            # with open("ad_keywords.txt", "a") as file:
-            #     file.write(text + '\n' + f'{start} - {end}\n\n')
-
-            if current_block is None:
-                current_block = [start, end]
-            else:
-                # Extend the current ad block if overlapping or adjacent within buffer
-                if start <= current_block[1]:
-                    current_block[1] = max(current_block[1], end)
-                else:
-                    # Update overall min and max if current block is finalized
-                    min_ms = min(min_ms, current_block[0])
-                    max_ms = max(max_ms, current_block[1])
-                    current_block = [start, end]
-        else:
-            if current_block is not None:
-                # Update overall min and max if moving out of ad segment
-                min_ms = min(min_ms, current_block[0])
-                max_ms = max(max_ms, current_block[1])
-                current_block = None
-
-    # Final update at the end of the transcript
-    if current_block is not None:
-        min_ms = min(min_ms, current_block[0])
-        max_ms = max(max_ms, current_block[1])
-    return min_ms, max_ms
+        ):
+            return True
+    return False
 
 
-def extract_segments(segments, start_time, end_time):
-    """Extracts segments from a JSON string based on the given start and end times.
-
-    Args:
-        json_string (str): The JSON string containing the segments.
-        start_time (float): The start time of the desired segments.
-        end_time (float): The end time of the desired segments.
-
-    Returns:
-        list: A list of extracted segments that fall within the specified tii me range.
-    """
-    # data = json.loads(json_string)
-    # segments = data['segments']
-    # print(f"Extracing Segments: {segments}")
-    try:
-        logger.info(
-            f"Extracting segments: start_time={start_time}, end_time={end_time}"
-        )
-        # extracted_segments = [segment for segment in segments if start_time <= segment.start <= end_time]
-
-        extracted_segments = [
-            {
-                # "id": segment.id,
-                # "seek": segment.seek,
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text,
-                # "tokens": segment.tokens,
-                # "temperature": segment.temperature,
-                # "avg_logprob": segment.avg_logprob,
-                # "compression_ratio": segment.compression_ratio,
-                # "no_speech_prob": segment.no_speech_prob,
-                # "words": segment.words,
-            }
-            for segment in segments
-            if start_time <= segment.start <= end_time
-        ]
-    except Exception as e:
-        logger.error(f"Error extracting segments: {e}")
-        send_error_alert(
-            error=e,
-            context="Error during segment extraction in audio_processor",
-            additional_info={
-                "start_time": start_time,
-                "end_time": end_time,
-                "segments_count": (
-                    len(segments) if "segments" in locals() else "unknown"
-                ),
-            },
-        )
-        raise Exception(f"An error occurred during segment extraction: {str(e)}")
-    # for segment in segments:
-    #     print(f"Extracted segment: start={segment.start}, end={segment.end}, text={segment.text[:50]}...")
-    return extracted_segments
 
 
 # set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
@@ -270,45 +140,13 @@ def initialize_model_pool(device="cuda"):
 def process_audio_segment(
     index, audio_segment, samplerate, total_segments, sponsors, transcripts_dir
 ):
-    def to_ms(sample_count):
-        return sample_count * 1000 // samplerate
-
-    def to_samples(ms):
-        return round(ms * samplerate / 1000)
-
     try:
         model = model_pool.get(block=True)  # Wait until a model is available
-        logger.info(
-            f"Thread using model {id(model)}, processing transcript_{index}.json"
-        )
+        logger.info(f"Thread using model {id(model)}, processing segment {index}")
         segment_path = f"segment_{index}.wav"
         sf.write(segment_path, audio_segment, samplerate)
         result_generator, info = model.transcribe(segment_path, language="en")
-        # Convert the generator to a list
         result = list(result_generator)
-        # print(f"Result: {result}")
-        # logger.info(f"Finding Timestamps for segment index {index}")
-        # min_ms, max_ms = find_ad_timestamps(result["segments"])
-        if index == 0:
-            min_ms = 0  # 0 in milliseconds
-            max_ms = 4 * 60 * 1000  # 4 minutes in milliseconds
-            logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}.json"
-            )
-            logger.info("Searching the first segment because it is likely to have ads")
-        elif index == total_segments - 1:
-            segment_duration_ms = to_ms(len(audio_segment))
-            min_ms = max(
-                0, segment_duration_ms - (3 * 60 * 1000)
-            )  # 3 minutes before the end
-            max_ms = segment_duration_ms  # Length of the audio segment
-            logger.info(
-                f"Setting min_ms: {min_ms}, max_ms: {max_ms} for transcript_{index}.json"
-            )
-            logger.info("Searching the last segment because it is likely to have ads")
-        else:
-            min_ms, max_ms = find_ad_timestamps(result, sponsors)
-        # Return the model to the pool
         model_pool.put(model)
     except Exception as e:
         logger.error(traceback.format_exc())
@@ -317,100 +155,85 @@ def process_audio_segment(
             context="Error during transcription in audio_processor",
             additional_info={
                 "segment_index": index,
-                "transcript_file": f"transcript_{index}.json",
-                "traceback": traceback.format_exc()[:500],  # Truncate traceback
+                "traceback": traceback.format_exc()[:500],
             },
         )
-        raise Exception(
-            f"An error occurred during Transcription for transcript_{index}.json: {str(e)}"
-        )
+        raise Exception(f"An error occurred during Transcription of segment {index}: {str(e)}")
 
-    # logger.info(f"ad timestamps: {ad_timestamps}")
-    logger.info(f"##############################################")
-    logger.info(f"Segment {index}, for transcript_{index}.json")
-    logger.info(
-        f"min_ms: {min_ms}, max_ms: {max_ms}, for transcript_{index}.json"
+    os.remove(segment_path)
+
+    # First and last segments are likely to carry pre/post-roll ads, so they
+    # always go to the LLM; the rest only when the keyword gate trips
+    if index not in (0, total_segments - 1) and not has_ad_keywords(result, sponsors):
+        logger.info(f"Segment {index}: no ad keywords, keeping as is")
+        return audio_segment
+
+    transcript = [
+        {"start": s.start, "end": s.end, "text": s.text} for s in result
+    ]
+    transcript_path = os.path.join(transcripts_dir, f"transcript_{index}.json")
+    with open(transcript_path, "w", encoding="utf-8") as file:
+        json.dump(transcript, file, indent=2, ensure_ascii=False)
+
+    cut_ranges = get_specific_timestamps_using_llm(
+        f"transcript_{index}.json", transcript_path, sponsors
     )
-    logger.info(f"##############################################")
-
-    # Slice audio before and after the ad
-    os.remove(segment_path)  # remove the audio segment after processing
-    if min_ms == float("inf") and max_ms == float("-inf"):
-        logger.info(
-            f"No ads found in the segment for transcript transcript_{index}.json"
-        )
+    if not cut_ranges:
+        logger.info(f"Segment {index}: nothing to cut")
         return audio_segment
-    elif max_ms - min_ms < MINIMUM_AD_SKIP_TIME:
-        logger.info(
-            "Skipping segment with less than 20 seconds of ads, likely false positive for transcript_{index}.json"
-        )
-        return audio_segment
-    else:
-        # TODO commented out for now, need to test transcript logging
-        # if max_ms - min_ms > 360:
-        #     logger.info("Ad segment is over 6 minutes, likely false positive. Reducing to 5 minutes")
-        # max_ms = min_ms + 300
-        # logger.info(f"SETTING::: min_ms: {min_ms}, max_ms: {max_ms}")
-        # Extract the segments containing ads for logging
-        logger.info(f"Extracting segments for transcript_{index}.json")
-        segments = extract_segments(result, min_ms, max_ms)
 
-        transcript_path = os.path.join(transcripts_dir, f"transcript_{index}.json")
-        try:
-            with open(transcript_path, "w", encoding="utf-8") as file:
-                logger.info(f"Logging ad segments to {transcript_path}")
-                json.dump(segments, file, indent=2, ensure_ascii=False)
-        except TypeError as e:
-            logger.error(f"Serialization failed with error: {e}")
-            logger.error(traceback.format_exc())
+    cut_ranges = _snap_to_transcript(cut_ranges, result)
+    logger.info(f"Segment {index}: cutting ranges (seconds): {cut_ranges}")
+    return _cut_ranges(audio_segment, cut_ranges, samplerate)
 
-        logger.info(
-            f"Thread {threading.get_ident()} is entering the openai api call for file transcript_{index}.json"
-        )
-        min_ms, max_ms, confidence_score = get_specific_timestamps_using_llm(
-            f"transcript_{index}.json",
-            transcript_path,
-            sponsors,
-        )
-        logger.info(
-            f"Finished with values MIN[{min_ms}], MAX[{max_ms}], "
-            f"and Confidence Score [{confidence_score}], transcript_{index}.json"
-        )
 
-        if min_ms == float("inf") and max_ms == float("-inf"):
-            logger.info(
-                f"No ads found in the segment for transcript transcript_{index}.json"
-            )
-            return audio_segment
+def _snap_to_transcript(cut_ranges, transcript):
+    """Align cut boundaries to transcription segment edges to avoid mid-word cuts."""
+    if not transcript:
+        return cut_ranges
+    starts = [t.start for t in transcript]
+    ends = [t.end for t in transcript]
+    snapped = []
+    for start, end in cut_ranges:
+        snapped_start = min(starts, key=lambda x: abs(x - start))
+        snapped_end = min(ends, key=lambda x: abs(x - end))
+        if snapped_end > snapped_start:
+            snapped.append([snapped_start, snapped_end])
+    return snapped
 
-        # TODO grabbing the ad segment TEXT and saving it to a file
-        # TODO honestly we may not even need this at all, as giving the transcript json file appears to be enough
-        # with open(f"transcript_{index}_ad_text.txt", "w", encoding="utf-8") as file:
-        #     for segment in segments:
-        #         file.write(segment['text'] + '\n')
-        ################################################################
 
-        start_ads_ms = round(min_ms * 1000)  # Convert seconds to milliseconds
-        end_ads_ms = round(max_ms * 1000)
+def _cut_ranges(audio, cut_ranges, samplerate):
+    kept = []
+    cursor = 0
+    for start, end in cut_ranges:
+        start_idx = max(0, round(start * samplerate))
+        end_idx = min(len(audio), round(end * samplerate))
+        if start_idx > cursor:
+            kept.append(audio[cursor:start_idx])
+        cursor = max(cursor, end_idx)
+    kept.append(audio[cursor:])
+    kept = [piece for piece in kept if len(piece)]
+    if not kept:
+        return audio[:0]
 
-        if start_ads_ms < 0:
-            logger.info(
-                f"transcript_{index}.json Start time is less than 0, setting to 0 {start_ads_ms}"
-            )
-            start_ads_ms = 0
-        if end_ads_ms > to_ms(len(audio_segment)):
-            logger.info(
-                f"transcript_{index}.json End time is greater than segment duration, setting to segment duration {end_ads_ms}"
-            )
-            end_ads_ms = to_ms(len(audio_segment))
-        logger.info(
-            f"start_ads_ms: {start_ads_ms}, end_ads_ms: {end_ads_ms}::: for transcript_{index}.json"
-        )
+    total_cut = sum(end - start for start, end in cut_ranges)
+    if total_cut * samplerate > 0.8 * len(audio):
+        logger.warning(f"Cutting over 80% of a segment ({total_cut:.0f}s)")
 
-        audio_before_ad = audio_segment[: to_samples(start_ads_ms)]
-        audio_after_ad = audio_segment[to_samples(end_ads_ms) :]
-        # Concatenate audio segments
-        return np.concatenate((audio_before_ad, audio_after_ad))
+    out = kept[0]
+    fade = round(samplerate * CROSSFADE_MS / 1000)
+    for piece in kept[1:]:
+        out = _join_with_crossfade(out, piece, fade)
+    return out
+
+
+def _join_with_crossfade(a, b, fade):
+    n = min(fade, len(a), len(b))
+    if n == 0:
+        return np.concatenate((a, b))
+    ramp = np.linspace(1.0, 0.0, n)[:, None]
+    mixed = (a[-n:] * ramp + b[:n] * (1 - ramp)).astype(a.dtype)
+    return np.concatenate((a[:-n], mixed, b[n:]))
 
 
 def remove_ads_from_audio(

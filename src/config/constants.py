@@ -19,6 +19,9 @@ NUMBER_OF_MODELS = int(os.getenv("NUMBER_OF_MODELS", 8))
 MODEL_SIZE = "tiny"
 
 CONFIDENCE_SCORE = 60
+MIN_CUT_SECONDS = 15  # drop detected ranges shorter than this (likely false positives)
+MERGE_GAP_SECONDS = 3  # merge detected ranges separated by less than this
+CROSSFADE_MS = 30
 
 DISCORD_ALERTS_ENABLED = os.getenv("DISCORD_ALERTS", "false").lower() in (
     "1",
