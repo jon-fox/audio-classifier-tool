@@ -33,10 +33,11 @@ def mp3_handler(
     podcast_description,
     hashkey,
     audio_url,
+    episode_name=None,
     episode_data={},
     json_data={},
 ):
-    episode_name = (
+    episode_name = episode_name or (
         getattr(episode_data, "name", "")
         or json_data.get("episodes", [{}])[0].get("name", "Unknown Episode")
         if json_data
@@ -76,6 +77,7 @@ def mp3_handler(
                 audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
                 podcast_description=podcast_description,
                 output_dir=episode_output_dir,
+                output_name=write_to_db.sanitize_name(episode_name),
             )
         except Exception as e:
             send_error_alert(

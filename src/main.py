@@ -17,13 +17,17 @@ from src.alerts.discord_alerts import send_error_alert, send_processing_alert
 
 
 def prepare_mp3_file(
-    podcast_name, podcast_description, episode_hash, audio_url, json_data={}
+    podcast_name, podcast_description, episode_hash, audio_url, episode_name, json_data={}
 ):
     logger.info(f"Fetching MP3 file::{audio_url}")
 
     try:
         processed_podcast_length = mp3_handler(
-            podcast_name, podcast_description, episode_hash, audio_url
+            podcast_name,
+            podcast_description,
+            episode_hash,
+            audio_url,
+            episode_name=episode_name,
         )
         logger.info(f"MP3 file processed::{processed_podcast_length}")
         return processed_podcast_length
@@ -101,6 +105,7 @@ def process_payload(payload={}):
         podcast_description=podcast_description,
         episode_hash=episode_hash,
         audio_url=audio_url,
+        episode_name=episode_name,
     )
     logger.info(f"Processed podcast length::{processed_podcast_length}")
 

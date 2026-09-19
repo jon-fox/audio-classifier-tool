@@ -12,8 +12,9 @@ MODEL_DOWNLOAD_PATH = os.path.join(BASE_PATH, "local_models", "tiny")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(FINISHED_MP3_DIR, exist_ok=True)
 # Any pydantic-ai model string works: openai:gpt-5, anthropic:claude-sonnet-4-6,
-# ollama:qwen3, ... (non-OpenAI providers may need their extra installed)
-LLM_MODEL = os.getenv("LLM_MODEL", "openai:gpt-5")
+# ollama:qwen3, ... (non-OpenAI providers may need their extra installed).
+# Default favors cost: detection is classification, not deep reasoning.
+LLM_MODEL = os.getenv("LLM_MODEL", "openai:gpt-5-mini")
 MODEL_FILE_NAME = "tiny.pt"
 NUMBER_OF_MODELS = int(os.getenv("NUMBER_OF_MODELS", 8))
 MODEL_SIZE = "tiny"

@@ -413,7 +413,9 @@ def process_audio_segment(
         return np.concatenate((audio_before_ad, audio_after_ad))
 
 
-def remove_ads_from_audio(audio_file, podcast_description, output_dir=None):
+def remove_ads_from_audio(
+    audio_file, podcast_description, output_dir=None, output_name=None
+):
     """
     Removes ads from an audio file.
 
@@ -430,11 +432,13 @@ def remove_ads_from_audio(audio_file, podcast_description, output_dir=None):
     """
     if output_dir is None:
         output_dir = FINISHED_MP3_DIR
+    if output_name is None:
+        output_name = os.path.splitext(os.path.basename(audio_file))[0]
     transcripts_dir = os.path.join(output_dir, "transcripts")
     os.makedirs(transcripts_dir, exist_ok=True)
 
-    # Keep the original episode alongside the cleaned one
-    shutil.copy2(audio_file, os.path.join(output_dir, os.path.basename(audio_file)))
+    # Keep the original episode alongside the filtered one
+    shutil.copy2(audio_file, os.path.join(output_dir, f"{output_name}.mp3"))
 
     sponsors = update_ad_keywords_with_sponsors(podcast_description)
 
@@ -494,9 +498,15 @@ def remove_ads_from_audio(audio_file, podcast_description, output_dir=None):
     # concatenate the segments without ads
     finished_audio_without_ads = np.concatenate([x[1] for x in results])
 
-    stem = os.path.splitext(os.path.basename(audio_file))[0]
-    output_file_path = os.path.abspath(os.path.join(output_dir, f"{stem}_clean.mp3"))
-    sf.write(output_file_path, finished_audio_without_ads, samplerate)
+    output_file_path = os.path.abspath(
+        os.path.join(output_dir, f"{output_name}_filtered.mp3")
+    )
+    # libsndfile's mp3 encoder corrupts int16 input; float32 encodes cleanly
+    sf.write(
+        output_file_path,
+        finished_audio_without_ads.astype(np.float32) / 32768.0,
+        samplerate,
+    )
 
     finished_duration = len(finished_audio_without_ads) / samplerate
     logger.info(f"Audio with ads duration: {original_duration} seconds")
