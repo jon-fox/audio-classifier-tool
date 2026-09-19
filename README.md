@@ -26,13 +26,19 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 export BASE_PATH=.   # working directory for downloads/output (defaults to /app in the container)
 ```
 
-### Secrets
+### Configuration
 
-Secrets are read at runtime, not from env vars:
+Config resolves from environment variables first. Setting `APP_MODE=aws` enables the AWS integrations — config falls back to SSM Parameter Store, results go to S3/DynamoDB, and the app polls SQS for work:
 
-- OpenAI API key: SSM Parameter Store at `/openai/api_key`
-- Discord error webhook: SSM Parameter Store at `/application/discord/errors_webhook`
-- Database credentials: Secrets Manager
+| Env var | SSM fallback (`APP_MODE=aws`) |
+|---------|-------------------------------|
+| `OPENAI_API_KEY` | `/openai/api_key` |
+| `DISCORD_WEBHOOK_URL` (optional) | `/application/discord/errors_webhook` |
+| `APP_STORAGE_BUCKET` | `/app/app_storage_bucket` |
+| `CDN_BASE_URL` | `/cloudfront/distribution/url` |
+| `SQS_URL` | `/sqs/audio_processing/url` |
+
+Without `APP_MODE=aws`, only `OPENAI_API_KEY` is needed — see [local.md](local.md).
 
 ### GPU/CUDA Setup
 
@@ -67,8 +73,8 @@ Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS 
 
 ## CI/CD
 
-- GitHub Actions configured for workflow dispatch from UI
-- Automated deployment pipeline for ECS containers
+- `build.yml`: builds the Docker image on push/PR (no AWS required)
+- `deploy-aws.yml`: optional manual dispatch — pushes to ECR and runs the SQS worker on a GPU EC2 instance
 
 ## Development Notes
 
@@ -78,7 +84,7 @@ Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS 
 
 ### Architecture
 - **Container-based**: Docker with NVIDIA CUDA support
-- **AWS Integration**: ECS, S3, DynamoDB, SQS, Lambda
+- **Cloud integration**: optional, isolated under `src/cloud/` (AWS today: S3, DynamoDB, SQS, Lambda, SSM), enabled with `APP_MODE=aws`
 - **AI Processing**: GPU-accelerated transcription for faster ad detection
 
 ## Quick Start

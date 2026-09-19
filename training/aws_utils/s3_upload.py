@@ -29,12 +29,12 @@ def upload_output_files(output_dir: str = "training/output") -> None:
     """
     print(f"Current working directory: {os.getcwd()}")
     if output_dir is None:
-        output_dir = os.path.join(os.path.dirname(__file__), '..', 'transcription')
-    
+        output_dir = os.path.join(os.path.dirname(__file__), "..", "transcription")
+
     if not os.path.exists(output_dir):
         print(f"Output directory {output_dir} does not exist.")
         return
-    
+
     for filename in os.listdir(output_dir):
         file_path = os.path.join(output_dir, filename)
         if os.path.isfile(file_path):

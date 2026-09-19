@@ -717,7 +717,9 @@ def create_transcript_structure(podcast_name, write_to_file=False):
         podcast_name (str): Name of the podcast for the output file.
         write_to_file (bool): If True, writes the structure to {podcast_name}_training_data.json
     """
-    logger.info(f"create_transcript_structure called with podcast_name={podcast_name}, write_to_file={write_to_file}")
+    logger.info(
+        f"create_transcript_structure called with podcast_name={podcast_name}, write_to_file={write_to_file}"
+    )
     downloads_dir = os.path.join(script_dir, "..", "..", "downloads")
 
     # Determine episode_id from the latest mp3 in downloads
@@ -739,7 +741,9 @@ def create_transcript_structure(podcast_name, write_to_file=False):
     max_index = -1
     if os.path.exists(script_dir):
         for filename in os.listdir(script_dir):
-            if filename.startswith("full_audio_transcript_") and filename.endswith(".json"):
+            if filename.startswith("full_audio_transcript_") and filename.endswith(
+                ".json"
+            ):
                 try:
                     index = int(filename.split("_")[-1].split(".")[0])
                     max_index = max(max_index, index)
@@ -762,7 +766,7 @@ def create_transcript_structure(podcast_name, write_to_file=False):
     # Clean the text: strip each segment and join with single space
     cleaned_texts = [seg["text"].strip() for seg in all_segments]
     text = " ".join(cleaned_texts)
-    
+
     # Update segments with cleaned text
     for i, seg in enumerate(all_segments):
         seg["text"] = cleaned_texts[i]
@@ -789,18 +793,22 @@ def create_transcript_structure(podcast_name, write_to_file=False):
                             start_times.append(seg["start"])
                             end_times.append(seg["end"])
                         else:
-                            logger.warning(f"Segment text not found for index {index}: {text_part[:50]}...")
-                    
+                            logger.warning(
+                                f"Segment text not found for index {index}: {text_part[:50]}..."
+                            )
+
                     if char_starts:
                         min_char_start = min(char_starts)
                         max_char_end = max(char_ends)
                         concatenated_snippet = " ".join(text_snippets)
-                        labels.append({
-                            "label": "Ad",
-                            "char_start": min_char_start,
-                            "char_end": max_char_end,
-                            "text_snippet": concatenated_snippet
-                        })
+                        labels.append(
+                            {
+                                "label": "Ad",
+                                "char_start": min_char_start,
+                                "char_end": max_char_end,
+                                "text_snippet": concatenated_snippet,
+                            }
+                        )
 
     structure = {
         "episode_id": episode_id,
@@ -816,7 +824,7 @@ def create_transcript_structure(podcast_name, write_to_file=False):
         if os.path.exists(full_file):
             os.remove(full_file)
             logger.info(f"Cleaned up {full_file}")
-        
+
         logging_file = os.path.join(script_dir, f"transcript_{index}_ad_label.json")
         if os.path.exists(logging_file):
             os.remove(logging_file)

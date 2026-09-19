@@ -1,22 +1,9 @@
 services:
-  my-service:
-    image: ${DOCKER_IMAGE_URI}
-    deploy:
-      replicas: 1
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
-    # runtime: nvidia
+  jusskipit:
+    build: .
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all  # Or specify particular GPUs, e.g., "0,1"
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility  # If additional capabilities are needed
-
-
-
-# docker stack deploy -c docker-compose.yml my_stack
-# export AWS_SHARED_CREDENTIALS_FILE=/root/.aws/credentials
-# export AWS_CONFIG_FILE=/root/.aws/config
-
-# need to make sure we have admin profile keys set
-# aws sts assume-role --role-arn <ROLE_ARN> --role-session-name ssm --external-id <EXTERNAL_ID> --profile admin
+      - APP_MODE=local
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PAYLOAD=${PAYLOAD}
+    volumes:
+      - ./output:/app/output

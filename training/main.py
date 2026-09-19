@@ -1,4 +1,7 @@
-from training.transcription.transcribe import label_ads_from_audio, create_transcript_structure
+from training.transcription.transcribe import (
+    label_ads_from_audio,
+    create_transcript_structure,
+)
 from training.aws_utils.s3_upload import upload_output_files
 import time
 

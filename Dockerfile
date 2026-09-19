@@ -28,6 +28,9 @@ RUN /app/.venv/bin/python -c "from faster_whisper import WhisperModel; import os
 COPY src/ /app/src
 
 ENV PYTHONPATH=/app
+
+# keeping as local as default for now
+ENV APP_MODE=local
 # Let ctranslate2 find the pip-installed cuBLAS/cuDNN libraries
 ENV LD_LIBRARY_PATH=/app/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/app/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:$LD_LIBRARY_PATH
 

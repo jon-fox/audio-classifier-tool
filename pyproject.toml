@@ -8,6 +8,7 @@ dependencies = [
     # audioop was removed from the stdlib in 3.13; pydub needs this shim
     "audioop-lts; python_version >= '3.13'",
     "backoff>=2.2.1",
+    "black>=26.5.1",
     "boto3>=1.40.21",
     "bs4>=0.0.2",
     "ctranslate2==4.8.2",
