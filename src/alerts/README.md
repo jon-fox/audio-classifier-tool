@@ -83,7 +83,7 @@ The alerting system is integrated into:
   - Message processing data errors
   - Status update errors
 
-- **Audio Processing** (`src/pod_handler/mp3_converter_whisperx.py`)
+- **Audio Processing** (`src/pod_handler/audio_processor.py`)
   - Segment extraction errors
   - Transcription failures
 

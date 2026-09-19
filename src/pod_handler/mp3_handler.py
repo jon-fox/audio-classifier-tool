@@ -4,8 +4,7 @@ import datetime
 import json
 from src.pod_handler.download_mp3 import download_episode
 
-# from src.pod_handler.mp3_converter import remove_ads_from_audio
-from src.pod_handler.mp3_converter import remove_ads_from_audio
+from src.pod_handler.audio_processor import remove_ads_from_audio
 from src.config.constants import *
 from src.config import settings
 from src.config.settings import AWS_ENABLED, get_setting

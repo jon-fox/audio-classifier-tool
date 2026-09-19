@@ -413,7 +413,7 @@ def extract_segments(segments, start_time, end_time):
         logger.error(f"Error extracting segments: {e}")
         send_error_alert(
             error=e,
-            context="Error during segment extraction in mp3_converter_whisperx",
+            context="Error during segment extraction in audio_processor",
             additional_info={
                 "start_time": start_time,
                 "end_time": end_time,
@@ -430,8 +430,8 @@ def extract_segments(segments, start_time, end_time):
 
 # set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
 # export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
-# python pod_handler/mp3_converter.py
-# python mp3_converter.py --device cuda
+# python pod_handler/audio_processor.py
+# python audio_processor.py --device cuda
 
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description="Process audio segments.")
@@ -536,7 +536,7 @@ def process_audio_segment(index, audio_segment, total_segments, sponsors):
         logger.error(traceback.format_exc())
         send_error_alert(
             error=e,
-            context="Error during transcription in mp3_converter_whisperx",
+            context="Error during transcription in audio_processor",
             additional_info={
                 "segment_index": index,
                 "transcript_file": f"transcript_{index}_logging.json",
