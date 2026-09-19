@@ -1,4 +1,7 @@
+import asyncio
 import os
+
+os.environ.setdefault("PYDANTIC_AI_NO_BANNER", "1")
 
 import backoff
 from pydantic import BaseModel
@@ -105,9 +108,13 @@ def get_specific_timestamps_using_llm(filename, path, sponsors, lock=None):
     with open(path, encoding="utf-8") as f:
         transcript = f.read()
 
-    result = _get_detection_agent().run_sync(
-        f"{get_detection_config().get_detection_instructions(sponsors)}"
-        f"\n\nTranscript segments (JSON):\n{transcript}"
+    # asyncio.run (rather than run_sync) so each worker thread's event loop is
+    # closed cleanly instead of leaking until garbage collection
+    result = asyncio.run(
+        _get_detection_agent().run(
+            f"{get_detection_config().get_detection_instructions(sponsors)}"
+            f"\n\nTranscript segments (JSON):\n{transcript}"
+        )
     )
     logger.info(f"Detection result for {filename}: {result.output}")
     return evaluate_detection(result.output)
@@ -119,7 +126,7 @@ def fetch_sponsors(podcast_description):
         return []
     logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
     try:
-        result = _get_sponsor_agent().run_sync(podcast_description)
+        result = asyncio.run(_get_sponsor_agent().run(podcast_description))
         sponsors = result.output.sponsors
         logger.info(f"Sponsors: {sponsors}")
         return sponsors

@@ -479,10 +479,13 @@ def remove_ads_from_audio(audio_file, podcast_description):
     results.sort(key=lambda x: x[0])
     # concatenate the segments without ads
     finished_audio_without_ads = np.concatenate([x[1] for x in results])
-    # Save the result
-    sf.write("finished_audio_without_ads.mp3", finished_audio_without_ads, samplerate)
 
-    output_file_path = os.path.abspath("finished_audio_without_ads.mp3")
+    # Save result to output dir
+    stem = os.path.splitext(os.path.basename(audio_file))[0]
+    output_file_path = os.path.abspath(
+        os.path.join(FINISHED_MP3_DIR, f"{stem}_clean.mp3")
+    )
+    sf.write(output_file_path, finished_audio_without_ads, samplerate)
 
     finished_duration = len(finished_audio_without_ads) / samplerate
     logger.info(f"Audio with ads duration: {original_duration} seconds")
