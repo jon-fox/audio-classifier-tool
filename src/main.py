@@ -2,11 +2,12 @@ import os
 from src.logger.logger_setup import logger
 from src.pod_handler.mp3_handler import mp3_handler
 import json
-import src.db_utils.write_to_db as write_to_db
-import boto3
 import sys
 from datetime import datetime
-from src.metadata.utils import (
+from src.config import settings
+from src.config.settings import AWS_ENABLED, get_setting
+from src.cloud.aws import write_to_db, queue
+from src.cloud.aws.ec2 import (
     is_terminating,
     get_instance_id,
     terminate_instance_on_error,
@@ -18,17 +19,11 @@ from src.alerts.discord_alerts import send_error_alert, send_processing_alert
 # http://localhost:8000/stream?podcast_name=Darknet%20Diaries
 # http://localhost:8000/stream?podcast_name=The%20Jimmy%20DORE%20Show
 
-ssm = boto3.client("ssm", region_name="us-east-1")
-sqs_client = boto3.client("sqs", "us-east-1")
-lambda_client = boto3.client("lambda", "us-east-1")
-
-# Configuration
-REGION = os.getenv("REGION", "us-east-1")
-BUCKET_NAME = ssm.get_parameter(Name="/app/app_storage_bucket")["Parameter"]["Value"]
-CDN_BASE_URL = ssm.get_parameter(Name="/cloudfront/distribution/url")["Parameter"][
-    "Value"
-]
-SQS_URL = ssm.get_parameter(Name="/sqs/audio_processing/url")["Parameter"]["Value"]
+# Configuration (env vars first; remote parameters when APP_MODE=aws)
+REGION = settings.REGION
+BUCKET_NAME = get_setting(settings.APP_STORAGE_BUCKET)
+CDN_BASE_URL = get_setting(settings.CDN_BASE_URL)
+SQS_URL = get_setting(settings.SQS_URL)
 # sample cdn url, first part is the cloudfront distribution,
 # the path is the s3 key path
 # https://d1234abcdefg.cloudfront.net/path/to/my-object.txt
@@ -44,7 +39,7 @@ def prepare_mp3_file(
     # async with httpx.AsyncClient() as client:
     logger.info(f"Fetching MP3 file::{audio_url}")
     s3_path = f"{podcast_name}/{episode_hash}/{episode_hash}.mp3"  # HACK may shorten this later
-    cdn_url = f"{CDN_BASE_URL}/{s3_path}"
+    cdn_url = f"{CDN_BASE_URL}/{s3_path}" if CDN_BASE_URL else ""
 
     try:
         processed_podcast_length = mp3_handler(
@@ -99,10 +94,8 @@ def invoke_rssfeed_update_lambda(
 
     logger.info(f"Payload for RSS Feed Update Lambda::{data_payload}")
 
-    response = lambda_client.invoke(
-        FunctionName="jusskipit_rssfeed_update_lambda",
-        InvocationType="Event",  # Asynchronous invocation
-        Payload=json.dumps(data_payload),
+    response = queue.invoke_lambda(
+        "jusskipit_rssfeed_update_lambda", json.dumps(data_payload)
     )
     logger.info(
         f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}"
@@ -135,27 +128,29 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
         )
         episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
 
-        instance_id = get_instance_id()
+        instance_id = get_instance_id() if AWS_ENABLED else None
         if instance_id:
             logger.info(f"Running on instance ID: {instance_id}")
         else:
-            logger.error("Failed to retrieve instance ID")
-            instance_id = "UNKNOWN"
+            instance_id = "LOCAL" if not AWS_ENABLED else "UNKNOWN"
 
-        write_to_db.insert_message(
-            episode_hash=episode_hash,
-            status="PROCESSING",
-            message_id=message_id,
-            processing_node=instance_id,
-            result_data=payload,
-            completed_timestamp=datetime.now(),
-            aws_request_id=receipt_handle,
-            is_archived=False,
-        )
+        if AWS_ENABLED:
+            write_to_db.insert_message(
+                episode_hash=episode_hash,
+                status="PROCESSING",
+                message_id=message_id,
+                processing_node=instance_id,
+                result_data=payload,
+                completed_timestamp=datetime.now(),
+                aws_request_id=receipt_handle,
+                is_archived=False,
+            )
 
-        logger.info(
-            f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING"
-        )
+            logger.info(
+                f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING"
+            )
+        else:
+            logger.info("Local mode: skipping DynamoDB PROCESSING status write")
 
         try:
             podcast_description = payload["data"]["episodes"][0]["description"]
@@ -175,7 +170,7 @@ def process_payload(payload={}, receipt_handle=None, message_id=None):
             f"Processed podcast length::{processed_podcast_length}, CDN URL::{cdn_url}"
         )
 
-        if payload.get("add_to_rss_feed", False):
+        if AWS_ENABLED and payload.get("add_to_rss_feed", False):
             logger.info(
                 f"Adding episode to Rss feed::{episode_hash}, invoking rss feed update lambda"
             )
@@ -279,7 +274,7 @@ def process_message(message_body, receipt_handle, message_id):
         )
         # Delete the message from the queue
         try:
-            sqs_client.delete_message(QueueUrl=SQS_URL, ReceiptHandle=receipt_handle)
+            queue.delete_message(SQS_URL, receipt_handle)
             logger.info("Failed message deleted from the queue")
         except Exception as delete_error:
             logger.error(f"Failed to delete message from queue: {delete_error}")
@@ -293,9 +288,7 @@ def poll_sqs():
         if not processing_message:
             logger.info("Polling SQS for messages...")
 
-            sqs_response = sqs_client.receive_message(
-                QueueUrl=SQS_URL, MaxNumberOfMessages=1, WaitTimeSeconds=10
-            )
+            sqs_response = queue.receive_message(SQS_URL)
 
             messages = sqs_response.get("Messages", [])
             if not messages:
@@ -313,9 +306,7 @@ def poll_sqs():
                 process_message(body, receipt_handle, message_id)
 
                 # Delete the message from the queue
-                sqs_client.delete_message(
-                    QueueUrl=SQS_URL, ReceiptHandle=receipt_handle
-                )
+                queue.delete_message(SQS_URL, receipt_handle)
                 logger.info("Message deleted from the queue")
                 logger.info("Waiting for next message...")
                 processing_message = False
@@ -337,6 +328,18 @@ def poll_sqs():
 
 
 def main():
+    if not AWS_ENABLED:
+        # Local mode: process a single episode from the PAYLOAD env var, then exit
+        payload = os.getenv("PAYLOAD")
+        if not payload:
+            logger.error(
+                'Local mode: set PAYLOAD to a JSON object like {"podcast_name": ..., '
+                '"episode_name": ..., "audio_url": ...} — see local.md'
+            )
+            sys.exit(1)
+        process_payload(json.loads(payload))
+        return
+
     if not SQS_URL:
         logger.error(
             "SQS_QUEUE_URL not found in parameter store /sqs/audio_processing/url"

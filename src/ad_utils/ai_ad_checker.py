@@ -10,19 +10,11 @@ from src.config.constants import CONFIDENCE_SCORE, MODEL_NAME
 import time
 import backoff
 from src.logger.logger_setup import logger
-import boto3
 import json
+from src.config import settings
+from src.config.settings import get_setting
 
-# import os
-
-try:
-    ssm = boto3.client("ssm", region_name="us-east-1")
-    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)[
-        "Parameter"
-    ]["Value"]
-except Exception as e:
-    logger.error(f"Error getting OpenAI API Key: {e}")
-    raise e
+OPENAI_API_KEY = get_setting(settings.OPENAI_API_KEY)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 # client = AsyncOpenAI()

@@ -1,17 +1,17 @@
 import requests
-import boto3
 import traceback
 from datetime import datetime
+from src.config import settings
+from src.config.settings import AWS_ENABLED, get_setting
 from src.logger.logger_setup import logger
 
 
 class DiscordAlerter:
     def __init__(self):
         try:
-            ssm = boto3.client("ssm", region_name="us-east-1")
-            self.webhook_url = ssm.get_parameter(
-                Name="/application/discord/errors_webhook"
-            )["Parameter"]["Value"]
+            self.webhook_url = get_setting(settings.DISCORD_WEBHOOK_URL)
+            if not self.webhook_url:
+                logger.info("No Discord webhook configured, alerts disabled")
             # Use lazy import to avoid circular dependency
             self.instance_id = self._get_instance_id() or "UNKNOWN"
         except Exception as e:
@@ -21,8 +21,10 @@ class DiscordAlerter:
 
     def _get_instance_id(self):
         """Lazy import to avoid circular dependency"""
+        if not AWS_ENABLED:
+            return None
         try:
-            from src.metadata.utils import get_instance_id
+            from src.cloud.aws.ec2 import get_instance_id
 
             return get_instance_id()
         except ImportError as e:
@@ -149,7 +151,12 @@ class DiscordAlerter:
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")
 
-            emoji_map = {"success": "✅", "started": "🚀", "warning": "⚠️", "info": "ℹ️"}
+            emoji_map = {
+                "success": "✅",
+                "started": "🚀",
+                "warning": "⚠️",
+                "info": "ℹ️",
+            }
 
             emoji = emoji_map.get(message_type, "📢")
 

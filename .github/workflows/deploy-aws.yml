@@ -1,4 +1,6 @@
-name: CI/CD Pipeline
+# Optional AWS deployment: builds the image, pushes to ECR, and runs it on a
+# GPU EC2 instance in worker mode (APP_MODE=aws). Manual dispatch only.
+name: Deploy to AWS EC2
 
 on:
   workflow_dispatch:
@@ -35,20 +37,17 @@ jobs:
         role-to-assume: ${{ secrets.AWS_DEV_GITHUB_ACTION_ROLE }}
         aws-region: us-east-1
 
-    - name: Log in to Amazon ECR
-      run: aws ecr get-login-password --region ${{ vars.REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT }}.dkr.ecr.${{ vars.REGION }}.amazonaws.com
-
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         ref: main
 
     - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v3
 
     - name: Log in to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@v2
 
     - name: Determine the image tag based on code changes
       run: |
@@ -76,7 +75,7 @@ jobs:
           --output text)
         
         echo "EC2 instance ID: $INSTANCE_ID"
-        echo "::set-output name=instance_id::$INSTANCE_ID"
+        echo "instance_id=$INSTANCE_ID" >> $GITHUB_OUTPUT
 
     - name: Wait for EC2 Instance to be running
       run: |
@@ -90,7 +89,7 @@ jobs:
           --query 'Reservations[0].Instances[0].PublicIpAddress' \
           --output text)
         echo "EC2 instance public IP: $PUBLIC_IP"
-        echo "::set-output name=public_ip::$PUBLIC_IP"
+        echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
 
     - name: Wait for SSH to be available
       run: |
@@ -130,10 +129,9 @@ jobs:
           # Run the new container with restart policy and cleanup
           docker run -d \
             --name my-service \
-            -p 80:80 \
-            -p 443:443 \
             --gpus all \
             --restart=no \
+            -e APP_MODE=aws \
             -e NVIDIA_VISIBLE_DEVICES=all \
             -e NVIDIA_DRIVER_CAPABILITIES=compute,utility \
             ${{ secrets.ECR_REPOSITORY }}:$IMAGE_TAG

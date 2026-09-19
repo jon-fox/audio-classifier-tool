@@ -1,17 +1,9 @@
 from openai import OpenAI
 import datetime
-import boto3
+from src.config import settings
+from src.config.settings import get_setting
 
-# from src.logger.logger_setup import logger
-
-try:
-    ssm = boto3.client("ssm", region_name="us-east-1")
-    OPENAI_API_KEY = ssm.get_parameter(Name="/openai/api_key", WithDecryption=True)[
-        "Parameter"
-    ]["Value"]
-except Exception as e:
-    print(f"Error getting SSM parameters: {e}")
-    raise e
+OPENAI_API_KEY = get_setting(settings.OPENAI_API_KEY)
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
