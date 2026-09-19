@@ -1,10 +1,10 @@
-# JusSkipIt - AI-Powered Podcast Ad Removal
+# AudioClassifier - AI-Powered Podcast Ad Removal
 
-> JusSkipIt originally ran as a hosted service at jusskipit.com. The service has been retired, but the full processing engine is open source here and can be self-hosted for podcast ad removal.
+> AudioClassifier (formerly JusSkipIt) originally ran as a hosted service at jusskipit.com. The service has been retired, but the full processing engine is open source here and can be self-hosted for podcast ad removal.
 
 ## Overview
 
-JusSkipIt automatically detects and removes advertisements from podcast audio files using AI transcription. This is the core processing engine:
+AudioClassifier automatically detects and removes advertisements from podcast audio files using AI transcription. This is the core processing engine:
 
 - Downloads podcast episodes from audio URLs (polled from SQS)
 - Transcribes audio with WhisperX/OpenAI Whisper (GPU-accelerated)
@@ -90,6 +90,6 @@ Instances need NVIDIA drivers + Docker (build your own AMI or start from an AWS 
 ## Quick Start
 
 1. Set environment variables and store secrets in SSM (see above)
-2. Build Docker container: `docker build -t jusskipit-app .`
-3. Run: `docker run --gpus all jusskipit-app`
+2. Build Docker container: `docker build -t audioclassifier-app .`
+3. Run: `docker run --gpus all audioclassifier-app`
 4. Application polls SQS for podcast processing requests

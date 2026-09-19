@@ -1,5 +1,5 @@
 services:
-  jusskipit:
+  audioclassifier:
     build: .
     environment:
       - APP_MODE=local

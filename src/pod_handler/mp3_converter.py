@@ -428,8 +428,8 @@ def extract_segments(segments, start_time, end_time):
     return extracted_segments
 
 
-# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
-# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/JusSkipIt"
+# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
+# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
 # python pod_handler/mp3_converter.py
 # python mp3_converter.py --device cuda
 

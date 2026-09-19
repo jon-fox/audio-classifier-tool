@@ -19,12 +19,12 @@ Optional: `export DISCORD_WEBHOOK_URL=<url>` to get processing alerts in Discord
 The image defaults to local mode:
 
 ```bash
-docker build -t jusskipit-app .
+docker build -t audioclassifier-app .
 docker run --gpus all \
   -e OPENAI_API_KEY=<your-key> \
   -e PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<episode-mp3-url>"}' \
   -v "$(pwd)/output:/app/output" \
-  jusskipit-app
+  audioclassifier-app
 ```
 
 Drop `--gpus all` to run on CPU (the Whisper `tiny` model is fine on CPU, just slower). The same container works on any rented GPU box — RunPod, Modal, a gaming PC — no cloud integration needed.

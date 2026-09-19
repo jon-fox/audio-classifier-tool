@@ -69,7 +69,7 @@ class DiscordAlerter:
 
             # Build the alert message
             message_parts = [
-                "🚨 **JUSSKIPIT APP ERROR ALERT** 🚨",
+                "🚨 **AUDIOCLASSIFIER APP ERROR ALERT** 🚨",
                 f"**Timestamp:** {timestamp}",
                 f"**Instance ID:** {self.instance_id}",
             ]
@@ -161,7 +161,7 @@ class DiscordAlerter:
             emoji = emoji_map.get(message_type, "📢")
 
             message_parts = [
-                f"{emoji} **JUSSKIPIT {alert_title} UPDATE**",
+                f"{emoji} **AUDIOCLASSIFIER {alert_title} UPDATE**",
                 f"**Type:** {message_type.upper()}",
                 f"**Timestamp:** {timestamp}",
                 f"**Instance ID:** {self.instance_id}",

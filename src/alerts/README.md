@@ -1,8 +1,8 @@
-# Discord Error Alerting System for JusSkipIt App
+# Discord Error Alerting System for AudioClassifier App
 
 ## Overview
 
-This document describes the Discord alerting system implemented for the JusSkipIt application to monitor and notify about errors in real-time.
+This document describes the Discord alerting system implemented for the AudioClassifier application to monitor and notify about errors in real-time.
 
 ## Configuration
 
@@ -95,7 +95,7 @@ The alerting system is integrated into:
 
 ### Error Alert Structure
 ```
-🚨 **JUSSKIPIT APP ERROR ALERT** 🚨
+🚨 **AUDIOCLASSIFIER APP ERROR ALERT** 🚨
 **Timestamp:** 2025-07-07 12:34:56 UTC
 **Instance ID:** i-1234567890abcdef0
 **Podcast:** Example Podcast
@@ -114,7 +114,7 @@ Exception traceback here
 
 ### Success Alert Structure
 ```
-✅ **JUSSKIPIT PROCESSING UPDATE**
+✅ **AUDIOCLASSIFIER PROCESSING UPDATE**
 **Type:** SUCCESS
 **Timestamp:** 2025-07-07 12:34:56 UTC
 **Instance ID:** i-1234567890abcdef0

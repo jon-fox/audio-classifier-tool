@@ -3,12 +3,12 @@ import logging
 
 
 def setup_logger():
-    logger = logging.getLogger("jusskipit")
+    logger = logging.getLogger("audioclassifier")
     logger.setLevel(logging.DEBUG)
 
     # Create handlers
     console_handler = logging.StreamHandler()
-    file_handler = logging.FileHandler("jusskipit.log")
+    file_handler = logging.FileHandler("audioclassifier.log")
     console_handler.setLevel(logging.DEBUG)
     file_handler.setLevel(logging.INFO)
 

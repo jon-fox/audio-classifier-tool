@@ -95,7 +95,7 @@ def invoke_rssfeed_update_lambda(
     logger.info(f"Payload for RSS Feed Update Lambda::{data_payload}")
 
     response = queue.invoke_lambda(
-        "jusskipit_rssfeed_update_lambda", json.dumps(data_payload)
+        "audioclassifier_rssfeed_update_lambda", json.dumps(data_payload)
     )
     logger.info(
         f"RSS Feed Update Lambda invoked for episode {sanitized_podcast_name}, and hash {hashkey}"
