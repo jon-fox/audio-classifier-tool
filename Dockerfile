@@ -8,8 +8,6 @@ RUN apt-get update && \
     apt-get install -y \
     ffmpeg \
     build-essential \
-    libcudnn8 \
-    libcudnn8-dev \
     libavcodec-extra \
     vim \
     iputils-ping && \
@@ -30,7 +28,7 @@ RUN /app/.venv/bin/python -c "from faster_whisper import WhisperModel; import os
 COPY src/ /app/src
 
 ENV PYTHONPATH=/app
-# Let ctranslate2 find the pip-installed cuBLAS libraries
-ENV LD_LIBRARY_PATH=/app/.venv/lib/python3.12/site-packages/nvidia/cublas/lib:$LD_LIBRARY_PATH
+# Let ctranslate2 find the pip-installed cuBLAS/cuDNN libraries
+ENV LD_LIBRARY_PATH=/app/.venv/lib/python3.13/site-packages/nvidia/cublas/lib:/app/.venv/lib/python3.13/site-packages/nvidia/cudnn/lib:$LD_LIBRARY_PATH
 
 CMD ["/app/.venv/bin/python", "/app/src/main.py"]

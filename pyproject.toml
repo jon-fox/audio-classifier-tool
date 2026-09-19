@@ -3,16 +3,19 @@ name = "jusskipit-app"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
+    # audioop was removed from the stdlib in 3.13; pydub needs this shim
+    "audioop-lts; python_version >= '3.13'",
     "backoff>=2.2.1",
     "boto3>=1.40.21",
     "bs4>=0.0.2",
-    "ctranslate2==4.4.0",
-    "faster-whisper==1.2.0",
-    "numpy==1.26.3",
-    # cuBLAS for ctranslate2 GPU inference (previously bundled via torch)
+    "ctranslate2==4.8.2",
+    "faster-whisper==1.2.1",
+    "numpy>=2",
+    # cuBLAS + cuDNN 9 for ctranslate2 GPU inference (previously bundled via torch/apt)
     "nvidia-cublas-cu12; sys_platform == 'linux'",
+    "nvidia-cudnn-cu12==9.*; sys_platform == 'linux'",
     "openai==1.106.1",
     "pydub==0.25.1",
     "requests>=2.32.5",
