@@ -26,6 +26,18 @@ BOUNDARY_WINDOW_SECONDS = 0.5
 SHIFT_SPAN_WINDOWS = 8  # loudness comparison span on each side, in windows (4s)
 SNAP_TOLERANCE_SECONDS = 3.0  # max distance to snap a cut edge to an audio boundary
 
+# Self-distilled text classifier (trained from past runs' decision files).
+# Opt-in: when enabled, its flags join the LLM prompt and it retrains after
+# each run; manual (re)training via train_text_classifier() always works.
+TEXT_CLASSIFIER_PATH = os.path.join(BASE_PATH, "local_models", "text_classifier.joblib")
+USE_TEXT_CLASSIFIER = os.getenv("USE_TEXT_CLASSIFIER", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
+CLASSIFIER_THRESHOLD = 0.65
+CLASSIFIER_MIN_RANGE_SECONDS = 8
+
 DISCORD_ALERTS_ENABLED = os.getenv("DISCORD_ALERTS", "false").lower() in (
     "1",
     "true",

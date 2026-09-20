@@ -10,6 +10,7 @@ from audioclassifier.config.detection_config import (
 )
 import json
 from datetime import datetime
+from audioclassifier.config.constants import USE_TEXT_CLASSIFIER
 from audioclassifier.config.settings import AWS_ENABLED
 from audioclassifier.cloud.aws import write_to_db
 from audioclassifier.cloud.aws.ec2 import get_instance_id
@@ -119,6 +120,13 @@ def process_payload(payload={}):
             "Processed Length": f"{result['filtered_duration']} seconds",
         },
     )
+
+    # This run's decisions are new training data; refresh the classifier
+    if USE_TEXT_CLASSIFIER:
+        from audioclassifier.detection.text_classifier import retrain_after_run
+
+        retrain_after_run()
+
     return result
 
 

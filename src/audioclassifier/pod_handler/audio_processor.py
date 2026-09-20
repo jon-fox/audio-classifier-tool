@@ -17,6 +17,7 @@ from audioclassifier.detection.llm_detector import (
     fetch_sponsors,
     get_specific_timestamps_using_llm,
 )
+from audioclassifier.detection.text_classifier import find_classifier_ranges
 from audioclassifier.logger.logger_setup import logger
 
 # Compiled keywords, cached per config so a config change takes effect
@@ -167,13 +168,15 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
 
     os.remove(segment_path)
 
-    # Keywords and acoustic discontinuities are hints for the LLM, not gates:
-    # every segment gets examined
+    # Keywords, acoustic discontinuities, and the trained classifier are hints
+    # for the LLM, not gates: every segment gets examined
     keyword_hits = find_keyword_hits(result, sponsors)
     audio_boundaries = find_audio_boundaries(audio_segment, samplerate)
+    classifier_ranges = find_classifier_ranges(result)
     logger.info(
         f"Segment {index}: keyword hits at {keyword_hits}, "
-        f"audio boundaries at {audio_boundaries}"
+        f"audio boundaries at {audio_boundaries}, "
+        f"classifier ranges at {classifier_ranges}"
     )
 
     transcript = [
@@ -189,6 +192,7 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
         sponsors,
         keyword_hits=keyword_hits,
         audio_boundaries=audio_boundaries,
+        classifier_ranges=classifier_ranges,
     )
     if not cut_ranges:
         logger.info(f"Segment {index}: nothing to cut")

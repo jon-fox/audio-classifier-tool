@@ -37,3 +37,15 @@ def process_episode(
             "audio_url": audio_url,
         }
     )
+
+
+def train_text_classifier(output_dir=None):
+    """Train the self-distilled ad classifier from past runs' decision files.
+
+    Returns training metrics. The trained model is picked up automatically by
+    subsequent runs as an extra detection signal.
+    """
+    from audioclassifier.config.constants import FINISHED_MP3_DIR
+    from audioclassifier.detection import text_classifier
+
+    return text_classifier.train(output_dir or FINISHED_MP3_DIR)

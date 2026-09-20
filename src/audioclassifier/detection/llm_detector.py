@@ -140,13 +140,18 @@ def evaluate_detection(result):
     giveup=lambda e: e.status_code != 429,
 )
 def get_specific_timestamps_using_llm(
-    filename, path, sponsors, keyword_hits=None, audio_boundaries=None
+    filename,
+    path,
+    sponsors,
+    keyword_hits=None,
+    audio_boundaries=None,
+    classifier_ranges=None,
 ):
     """Ask the LLM for ad ranges in a transcript segment.
 
-    keyword_hits / audio_boundaries are advisory signals included in the
-    prompt. Returns a list of [start, end] second ranges to cut (empty =
-    keep all).
+    keyword_hits / audio_boundaries / classifier_ranges are advisory signals
+    included in the prompt. Returns a list of [start, end] second ranges to
+    cut (empty = keep all).
     """
     logger.info(f"Requesting timestamps for {filename}, sponsors: {sponsors}")
 
@@ -165,6 +170,11 @@ def get_specific_timestamps_using_llm(
             f"typical signature of dynamically inserted ad boundaries) at "
             f"these times (seconds): {audio_boundaries}"
         )
+    if classifier_ranges:
+        signals.append(
+            f"- A locally trained ad classifier flags these ranges (seconds): "
+            f"{classifier_ranges}"
+        )
     signals_block = (
         "\n\nAdditional detection signals (advisory, not exhaustive):\n"
         + "\n".join(signals)
@@ -182,12 +192,19 @@ def get_specific_timestamps_using_llm(
     output = result.output
     logger.info(f"Detection result for {filename}: {output}")
     cut_ranges = evaluate_detection(output)
-    _write_decision(path, output, cut_ranges, keyword_hits, audio_boundaries)
+    _write_decision(
+        path, output, cut_ranges, keyword_hits, audio_boundaries, classifier_ranges
+    )
     return cut_ranges
 
 
 def _write_decision(
-    transcript_path, output, cut_ranges, keyword_hits=None, audio_boundaries=None
+    transcript_path,
+    output,
+    cut_ranges,
+    keyword_hits=None,
+    audio_boundaries=None,
+    classifier_ranges=None,
 ):
     decision_path = transcript_path.replace(".json", "_decision.json")
     try:
@@ -201,6 +218,7 @@ def _write_decision(
                     "cut_ranges_seconds": cut_ranges,
                     "keyword_hits": keyword_hits or [],
                     "audio_boundaries": audio_boundaries or [],
+                    "classifier_ranges": classifier_ranges or [],
                 },
                 f,
                 indent=2,
