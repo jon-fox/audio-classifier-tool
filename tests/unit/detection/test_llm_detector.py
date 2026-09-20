@@ -39,8 +39,6 @@ def test_no_timestamps():
     assert evaluate_detection(result(90, [])) == []
 
 
-
-
 def test_cut_decision_recorded(tmp_path):
     transcript_path = str(tmp_path / "transcript_3.json")
     output = DetectionResult(

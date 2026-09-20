@@ -26,6 +26,7 @@ def _ensure_api_key():
     if LLM_MODEL.startswith("openai") and not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError(f"Set OPENAI_API_KEY to use {LLM_MODEL}")
 
+
 # All agent calls run on one persistent background event loop. The agents'
 # async HTTP connection pool is bound to the loop it first runs on, so calls
 # from worker threads must share a single live loop rather than each creating

@@ -5,7 +5,6 @@ import pytest
 
 import audioclassifier.detection.text_classifier as tc
 
-
 AD_TEXTS = [
     "use code PODCAST for twenty percent off your first order",
     "this episode is brought to you by our sponsor",

@@ -38,9 +38,7 @@ def build_dataset(output_dir=FINISHED_MP3_DIR):
         with open(transcript_path, encoding="utf-8") as f:
             sentences = json.load(f)
         for sentence in sentences:
-            inside = any(
-                start <= sentence["start"] < end for start, end in cut_ranges
-            )
+            inside = any(start <= sentence["start"] < end for start, end in cut_ranges)
             texts.append(sentence["text"])
             labels.append(1 if inside else 0)
     return texts, labels

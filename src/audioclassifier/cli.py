@@ -12,7 +12,10 @@ import json
 from audioclassifier.config.constants import USE_TEXT_CLASSIFIER
 from audioclassifier.detection.llm_detector import _ensure_api_key
 from audioclassifier.util import generate_hash, sanitize_name
-from audioclassifier.alerts.discord_alerts import send_error_alert, send_processing_alert
+from audioclassifier.alerts.discord_alerts import (
+    send_error_alert,
+    send_processing_alert,
+)
 
 
 def prepare_mp3_file(source, description, audio_hash, audio_url, name):

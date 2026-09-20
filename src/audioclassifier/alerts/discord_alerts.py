@@ -188,9 +188,7 @@ class DiscordAlerter:
 discord_alerter = DiscordAlerter()
 
 
-def send_error_alert(
-    error, context="", name="", source="", additional_info=None
-):
+def send_error_alert(error, context="", name="", source="", additional_info=None):
     """
     Convenience function to send error alerts
     """
@@ -199,9 +197,7 @@ def send_error_alert(
     )
 
 
-def send_processing_alert(
-    message_type, source="", name="", additional_info=None
-):
+def send_processing_alert(message_type, source="", name="", additional_info=None):
     """
     Convenience function to send processing alerts
     """

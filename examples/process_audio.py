@@ -57,7 +57,9 @@ def main():
     print(f"Filtered duration: {result['filtered_duration']:.0f}s")
     print(f"Removed:           {result['seconds_removed']:.0f}s")
 
-    transcripts_dir = os.path.join(os.path.dirname(result["output_path"]), "transcripts")
+    transcripts_dir = os.path.join(
+        os.path.dirname(result["output_path"]), "transcripts"
+    )
     for path in sorted(glob.glob(os.path.join(transcripts_dir, "*_decision.json"))):
         decision = json.load(open(path))
         print(f"\n{os.path.basename(path)}: {decision['action'].upper()}")

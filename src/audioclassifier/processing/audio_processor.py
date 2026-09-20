@@ -35,6 +35,7 @@ def get_keywords_compiled():
         _keywords_cache = (config, compiled)
     return compiled
 
+
 def update_ad_keywords_with_sponsors(description):
     if description:
         logger.info(f"Description: {description}")
@@ -170,7 +171,9 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
                 "traceback": traceback.format_exc()[:500],
             },
         )
-        raise Exception(f"An error occurred during Transcription of segment {index}: {str(e)}")
+        raise Exception(
+            f"An error occurred during Transcription of segment {index}: {str(e)}"
+        )
     finally:
         if segment_path and os.path.exists(segment_path):
             os.remove(segment_path)
@@ -186,9 +189,7 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
         f"classifier ranges at {classifier_ranges}"
     )
 
-    transcript = [
-        {"start": s.start, "end": s.end, "text": s.text} for s in result
-    ]
+    transcript = [{"start": s.start, "end": s.end, "text": s.text} for s in result]
     transcript_path = os.path.join(transcripts_dir, f"transcript_{index}.json")
     with open(transcript_path, "w", encoding="utf-8") as file:
         json.dump(transcript, file, indent=2, ensure_ascii=False)
@@ -267,9 +268,7 @@ def _join_with_crossfade(a, b, fade):
     return np.concatenate((a[:-n], mixed, b[n:]))
 
 
-def remove_ads_from_audio(
-    audio_file, description, output_dir=None, output_name=None
-):
+def remove_ads_from_audio(audio_file, description, output_dir=None, output_name=None):
     """
     Removes ads from an audio file.
 
@@ -368,8 +367,5 @@ def remove_ads_from_audio(
 
     finished_duration = len(finished_audio_without_ads) / samplerate
     logger.info(f"Audio with ads duration: {original_duration} seconds")
-    logger.info(
-        f"Finished audio without ads duration: {finished_duration} seconds"
-    )
+    logger.info(f"Finished audio without ads duration: {finished_duration} seconds")
     return finished_duration, original_duration, output_file_path
-

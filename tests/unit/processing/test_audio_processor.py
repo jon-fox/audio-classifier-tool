@@ -31,7 +31,9 @@ def test_crossfade_join_length_and_dtype():
 
 
 def test_snap_prefers_audio_boundaries_then_transcript_edges():
-    transcript = [SimpleNamespace(start=s, end=s + 4.0, text="w") for s in range(0, 600, 5)]
+    transcript = [
+        SimpleNamespace(start=s, end=s + 4.0, text="w") for s in range(0, 600, 5)
+    ]
     # start snaps to the nearby audio boundary; end (no boundary near) to a transcript edge
     assert _snap_cut_ranges([[61.8, 118.3]], transcript, [60.5]) == [[60.5, 119.0]]
     # no boundaries at all: transcript edges only
