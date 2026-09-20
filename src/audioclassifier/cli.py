@@ -3,32 +3,27 @@ import os
 import sys
 
 from audioclassifier.logger.logger_setup import configure_logging, logger
-from audioclassifier.pod_handler.mp3_handler import mp3_handler
+from audioclassifier.processing.mp3_handler import mp3_handler
 from audioclassifier.config.detection_config import (
     get_detection_config,
     set_detection_config,
 )
 import json
-from datetime import datetime
 from audioclassifier.config.constants import USE_TEXT_CLASSIFIER
-from audioclassifier.config.settings import AWS_ENABLED
-from audioclassifier.cloud.aws import write_to_db
-from audioclassifier.cloud.aws.ec2 import get_instance_id
+from audioclassifier.util import generate_hash, sanitize_name
 from audioclassifier.alerts.discord_alerts import send_error_alert, send_processing_alert
 
 
-def prepare_mp3_file(
-    podcast_name, podcast_description, episode_hash, audio_url, episode_name, json_data={}
-):
+def prepare_mp3_file(source, description, audio_hash, audio_url, name):
     logger.info(f"Fetching MP3 file::{audio_url}")
 
     try:
         result = mp3_handler(
-            podcast_name,
-            podcast_description,
-            episode_hash,
+            source,
+            description,
+            audio_hash,
             audio_url,
-            episode_name=episode_name,
+            name=name,
         )
         logger.info(f"MP3 file processed::{result}")
         return result
@@ -37,15 +32,11 @@ def prepare_mp3_file(
         send_error_alert(
             error=e,
             context="MP3 file processing failed in prepare_mp3_file",
-            episode_name=(
-                json_data.get("episodes", [{}])[0].get("name", "Unknown Episode")
-                if json_data
-                else "Unknown Episode"
-            ),
-            podcast_name=podcast_name,
+            name=name,
+            source=source,
             additional_info={
                 "audio_url": audio_url,
-                "episode_hash": episode_hash,
+                "audio_hash": audio_hash,
             },
         )
         raise e
@@ -58,65 +49,32 @@ def process_payload(payload={}):
         logger.info("No payload received")
         return
 
-    logger.info(f"Podcast before sanitization::{payload.get('podcast_name')}")
-    podcast_name = write_to_db.sanitize_name(payload.get("podcast_name"))
-    episode_name = payload.get("episode_name")
+    source = sanitize_name(payload.get("source"))
+    name = payload.get("name")
     audio_url = payload.get("audio_url")
-    logger.info(
-        f"Processing podcast_name: {podcast_name}, "
-        f"episode_name: {episode_name}, "
-        f"audio_url: {audio_url}"
-    )
-    episode_hash = write_to_db.generate_hash(podcast_name, episode_name)
+    logger.info(f"Processing source: {source}, name: {name}, audio_url: {audio_url}")
+    audio_hash = generate_hash(source, name)
 
-    instance_id = get_instance_id() if AWS_ENABLED else None
-    if instance_id:
-        logger.info(f"Running on instance ID: {instance_id}")
-    else:
-        instance_id = "LOCAL" if not AWS_ENABLED else "UNKNOWN"
-
-    if AWS_ENABLED:
-        write_to_db.insert_message(
-            episode_hash=episode_hash,
-            status="PROCESSING",
-            message_id=None,
-            processing_node=instance_id,
-            result_data=payload,
-            completed_timestamp=datetime.now(),
-            aws_request_id=None,
-            is_archived=False,
-        )
-
-        logger.info(
-            f"Status of {podcast_name} for hash {episode_hash} has been updated in meta table to PROCESSING"
-        )
-    else:
-        logger.info("Local mode: skipping DynamoDB PROCESSING status write")
-
-    try:
-        podcast_description = payload["data"]["episodes"][0]["description"]
-        logger.info(
-            f"Podcast description fetched for processing::{podcast_description}"
-        )
-    except KeyError:
-        podcast_description = ""
+    description = payload.get("description") or ""
+    if description:
+        logger.info(f"Description provided for processing::{description}")
 
     result = prepare_mp3_file(
-        podcast_name=podcast_name,
-        podcast_description=podcast_description,
-        episode_hash=episode_hash,
+        source=source,
+        description=description,
+        audio_hash=audio_hash,
         audio_url=audio_url,
-        episode_name=episode_name,
+        name=name,
     )
     logger.info(f"Processing result::{result}")
 
     # Send success alert
     send_processing_alert(
         message_type="success",
-        podcast_name=podcast_name,
-        episode_name=episode_name,
+        source=source,
+        name=name,
         additional_info={
-            "Episode Hash": episode_hash,
+            "Audio Hash": audio_hash,
             "Processed Length": f"{result['filtered_duration']} seconds",
         },
     )
@@ -134,7 +92,7 @@ def main():
     configure_logging()
 
     parser = argparse.ArgumentParser(
-        description="AudioClassifier: detect and cut content from podcast audio"
+        description="AudioClassifier: detect and cut content from audio"
     )
     parser.add_argument(
         "--detection",
@@ -155,10 +113,12 @@ def main():
 
     payload = os.getenv("PAYLOAD")
     if not payload:
-        logger.error(
-            'Set PAYLOAD to a JSON object like {"podcast_name": ..., '
-            '"episode_name": ..., "audio_url": ...} — see README.md'
+        message = (
+            'Set PAYLOAD to a JSON object like {"source": ..., '
+            '"name": ..., "audio_url": ...} — see README.md'
         )
+        logger.error(message)
+        print(message, file=sys.stderr)
         sys.exit(1)
     process_payload(json.loads(payload))
 

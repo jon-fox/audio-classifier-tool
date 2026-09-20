@@ -3,7 +3,7 @@
 
     uv run python examples/train_classifier.py [output-dir]
 
-Every processed episode adds training data (transcripts labeled by the LLM's
+Every processed audio file adds training data (transcripts labeled by the LLM's
 cut/keep decisions under output/). Once trained, runs automatically feed the
 classifier's flags to the LLM as an extra detection signal.
 """

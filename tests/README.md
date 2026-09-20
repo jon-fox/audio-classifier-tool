@@ -28,30 +28,30 @@ uv run pytest -m integration
 - `test_package_install.py` — builds the wheel locally (`uv build`), installs it into an
   isolated environment, and exercises the installed package: import, bundled detection
   config, public API, and the `audioclassifier` console script. No API key needed.
-- `test_process_episode.py` — the full pipeline (download, transcribe, detect, cut)
-  against a real episode. Skipped unless configured:
+- `test_process_audio.py` — the full pipeline (download, transcribe, detect, cut)
+  against real audio. Skipped unless configured:
 
 ```bash
 export OPENAI_API_KEY=<your-key>
-export AUDIOCLASSIFIER_TEST_URL=<episode-mp3-url>
+export AUDIOCLASSIFIER_TEST_URL=<mp3-url>
 uv run pytest -m integration
 ```
 
-The episode test writes `downloads/` and `output/` in the current directory and takes
+The pipeline test writes `output/` in the current directory and takes
 as long as a real run.
 
 ## Using AudioClassifier as a library
 
-`test_process_episode.py` doubles as the usage example:
+`test_process_audio.py` doubles as the usage example:
 
 ```python
 import audioclassifier
 
-result = audioclassifier.process_episode(
-    podcast_name="My Podcast",
-    episode_name="Episode 1",
-    audio_url="https://example.com/episode.mp3",
-    detection="ads",  # optional: bundled/local config name, or a .toon path
+result = audioclassifier.process_audio(
+    source="My Show",
+    name="Episode 1",
+    audio_url="https://example.com/audio.mp3",
+    detection="examples/configs/ads.toon",  # a .toon path or a name in ./configs
 )
 
 result["output_path"]        # the cleaned mp3

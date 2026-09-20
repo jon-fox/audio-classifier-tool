@@ -87,7 +87,7 @@ def test_unknown_name_raises():
 
 
 def test_keyword_cache_follows_config_changes():
-    from audioclassifier.pod_handler.audio_processor import get_keywords_compiled
+    from audioclassifier.processing.audio_processor import get_keywords_compiled
 
     dc.set_detection_config(instructions="Find X.", keywords=["first"])
     assert [p.pattern for p in get_keywords_compiled()] == ["first"]

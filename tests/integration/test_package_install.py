@@ -32,7 +32,7 @@ def test_installed_package_configures_from_parts(wheel, tmp_path):
         "except RuntimeError as e:\n"
         "    err = 'guided-error' if 'No detection config' in str(e) else 'wrong-error'\n"
         "c = set_detection_config(instructions='Find X. {optional_sponsors_section}', keywords=['x'])\n"
-        "print(err, c.name, len(c.keywords), callable(audioclassifier.process_episode))"
+        "print(err, c.name, len(c.keywords), callable(audioclassifier.process_audio))"
     )
     out = _run(
         ["uv", "run", "--no-project", "--with", wheel, "python", "-c", code],

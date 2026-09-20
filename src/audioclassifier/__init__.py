@@ -1,19 +1,22 @@
-"""AudioClassifier: detect and cut target segments (ads by default) from podcast audio."""
+"""AudioClassifier: detect and cut target segments from audio (ads by default)."""
 
 
-def process_episode(
-    podcast_name,
-    episode_name,
+def process_audio(
+    source,
+    name,
     audio_url,
     detection=None,
     detection_instructions=None,
     detection_keywords=None,
+    description=None,
 ):
-    """Process one episode: download, transcribe, detect, and cut.
+    """Process one audio file: download, transcribe, detect, and cut.
 
-    detection: optional config name (bundled or in ./configs) or path to a
-    .toon file. detection_instructions / detection_keywords override the
-    selected config's prompt and keyword list directly. Returns a dict with
+    source groups outputs (output/<source>/<name>/); name is used for the
+    output filenames. detection: a config name (in ./configs) or a .toon path;
+    detection_instructions / detection_keywords override the selected config
+    directly. description is optional context about the audio for the
+    detection config's context-extraction prompt. Returns a dict with
     output_path, filtered_duration, original_duration, and seconds_removed.
 
     Configure the "audioclassifier" logger to see progress; set OPENAI_API_KEY
@@ -32,11 +35,13 @@ def process_episode(
 
     return process_payload(
         {
-            "podcast_name": podcast_name,
-            "episode_name": episode_name,
+            "source": source,
+            "name": name,
             "audio_url": audio_url,
+            "description": description,
         }
     )
+
 
 
 def train_text_classifier(output_dir=None):

@@ -59,7 +59,7 @@ def train(output_dir=FINISHED_MP3_DIR, model_path=TEXT_CLASSIFIER_PATH):
     if len(texts) < 200 or positives < 20:
         raise RuntimeError(
             f"Not enough training data ({len(texts)} sentences, {positives} ad "
-            f"sentences); process more episodes first"
+            f"sentences); process more audio first"
         )
 
     train_x, test_x, train_y, test_y = train_test_split(

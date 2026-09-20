@@ -1,6 +1,6 @@
 # AudioClassifier - Dynamic Classifier used for Audio Segment Identification and Removal
 
-Runs locally by default: one episode in, cleaned audio out. Needs an OpenAI API key and `ffmpeg`.
+Runs locally by default: one audio file in, filtered audio out. Needs an OpenAI API key and `ffmpeg`.
 
 ## Quick Start
 
@@ -8,18 +8,18 @@ Runs locally by default: one episode in, cleaned audio out. Needs an OpenAI API 
 uv sync
 export OPENAI_API_KEY=<your-key>
 
-PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
+PAYLOAD='{"source": "My Show", "name": "Episode 1", "audio_url": "<mp3-url>"}' \
   uv run audioclassifier --detection examples/configs/ads.toon
 ```
 
-Results land in `output/<podcast_name>/<episode_name>/`: the original mp3, the cleaned `*_filtered.mp3`, and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
+Results land in `output/<source>/<name>/`: the original mp3, the cleaned `*_filtered.mp3`, and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
 
 ```bash
 docker build -t audioclassifier-app .
 docker run --gpus all \
   -e OPENAI_API_KEY=<your-key> \
   -e DETECTION_CONFIG=ads \
-  -e PAYLOAD='{"podcast_name": "My Podcast", "episode_name": "Episode 1", "audio_url": "<mp3-url>"}' \
+  -e PAYLOAD='{"source": "My Show", "name": "Episode 1", "audio_url": "<mp3-url>"}' \
   -v "$(pwd)/output:/app/output" \
   audioclassifier-app
 ```
@@ -35,9 +35,9 @@ uv add git+https://github.com/jon-fox/audio-classifier-tool
 ```python
 import audioclassifier
 
-result = audioclassifier.process_episode(
-    podcast_name="My Podcast",
-    episode_name="Episode 1",
+result = audioclassifier.process_audio(
+    source="My Show",
+    name="Episode 1",
     audio_url="<mp3-url>",
     detection="examples/configs/ads.toon",  # a .toon path or a name in ./configs
     detection_instructions="...",           # or pass the prompt directly
@@ -51,12 +51,12 @@ Importing has no side effects; configure the `"audioclassifier"` logger to see p
 For a real end-to-end run with live console output and a decision summary:
 
 ```bash
-uv run python examples/process_episode.py "<episode-mp3-url>"
+uv run python examples/process_audio.py "<mp3-url>"
 ```
 
 ## How It Works
 
-- Downloads the episode from the `PAYLOAD` JSON
+- Downloads the audio from the `PAYLOAD` JSON (`source`, `name`, `audio_url`, optional `description`)
 - Transcribes with faster-whisper (GPU-accelerated, CPU works too)
 - Detects target segments with OpenAI — ads by default
 - Cuts them and re-assembles the audio
@@ -67,7 +67,7 @@ The classifier is fully yours to define — nothing is bundled. A [TOON](https:/
 
 ## Text Classifier (optional, opt-in)
 
-A self-distilled local classifier can add a third detection signal alongside keywords and audio analysis. Every processed episode writes LLM-labeled decisions under `output/**/transcripts/` — that corpus is the classifier's training data, and it grows with each run.
+A self-distilled local classifier can add a third detection signal alongside keywords and audio analysis. Every processed audio file writes LLM-labeled decisions under `output/**/transcripts/` — that corpus is the classifier's training data, and it grows with each run.
 
 Enable with `USE_TEXT_CLASSIFIER=true`: the classifier's flagged ranges join the LLM prompt (advisory only — the LLM still decides), and it retrains automatically after each run from the **full accumulated history** (retraining is from scratch, in seconds, so nothing is ever forgotten). Refresh manually anytime:
 
@@ -79,13 +79,13 @@ How it propagates: the durable memory is the decision files in `output/` — the
 
 ## Parallelism
 
-One episode per `process_episode` call. Multiple processes are safe, even in the same directory — downloads and segment audio live in per-episode temp dirs, and the classifier model is written atomically. Within one process, run episodes sequentially (Whisper models load once and are reused); concurrent episodes in threads are supported only with one shared detection config. Don't feed the same episode to two processes at once — they'd write the same output files.
+One audio file per `process_audio` call. Multiple processes are safe, even in the same directory — downloads and segment audio live in per-run temp dirs, and the classifier model is written atomically. Within one process, run audio files sequentially (Whisper models load once and are reused); concurrent runs in threads are supported only with one shared detection config. Don't feed the same audio to two processes at once — they'd write the same output files.
 
 ## Options
 
 - `LLM_MODEL` — any [pydantic-ai model string](https://ai.pydantic.dev/models/) (default `openai:gpt-5.6`; e.g. `openai:gpt-5-nano` for cheapest, `anthropic:claude-sonnet-4-6`, `ollama:qwen3` — non-OpenAI providers may need their extra installed)
 - `DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` — processing alerts in Discord
-- `APP_MODE=aws` — optional cloud mode: config from SSM, results to S3/DynamoDB (code isolated under `audioclassifier/cloud/`)
+- `APP_MODE=aws` — optional: resolve config (e.g. the OpenAI key) from SSM; the storage adapters under `audioclassifier/cloud/` are currently unwired
 
 ## License
 

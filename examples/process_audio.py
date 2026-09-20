@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-"""Run the real pipeline against an episode URL using the library API.
+"""Run the real pipeline against an audio URL using the library API.
 
     export OPENAI_API_KEY=<your-key>
-    uv run python examples/process_episode.py "<episode-mp3-url>" \
-        --podcast "My Podcast" --episode "Episode 1"
+    uv run python examples/process_audio.py "<mp3-url>" \
+        --source "My Show" --name "Episode 1"
 
 The classifier is config-driven: --detection selects what gets found and cut.
 This example defaults to the ad classifier at examples/configs/ads.toon;
@@ -26,9 +26,9 @@ import audioclassifier
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("audio_url", help="episode mp3 url")
-    parser.add_argument("--podcast", default="Example Podcast")
-    parser.add_argument("--episode", default="Example Episode")
+    parser.add_argument("audio_url", help="audio file url")
+    parser.add_argument("--source", default="Example Source")
+    parser.add_argument("--name", default="Example Audio")
     parser.add_argument(
         "--detection",
         default=os.path.join(os.path.dirname(__file__), "configs", "ads.toon"),
@@ -44,9 +44,9 @@ def main():
     logger.setLevel(logging.INFO)
 
     print(f"Detection config: {args.detection}")
-    result = audioclassifier.process_episode(
-        podcast_name=args.podcast,
-        episode_name=args.episode,
+    result = audioclassifier.process_audio(
+        source=args.source,
+        name=args.name,
         audio_url=args.audio_url,
         detection=args.detection,
     )

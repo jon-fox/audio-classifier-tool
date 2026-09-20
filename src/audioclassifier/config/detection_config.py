@@ -14,7 +14,7 @@ _DEFAULT_ASSISTANT_INSTRUCTIONS = (
 _NO_CONFIG_ERROR = (
     "No detection config selected. Pass a .toon config (a path, or a name in "
     "./configs) or detection instructions/keywords directly — via "
-    "process_episode(detection=..., detection_instructions=..., "
+    "process_audio(detection=..., detection_instructions=..., "
     "detection_keywords=...), the --detection flag, or the DETECTION_CONFIG / "
     "DETECTION_INSTRUCTIONS / DETECTION_KEYWORDS env vars. Example configs: "
     "examples/configs/ in the repository."

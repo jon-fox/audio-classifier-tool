@@ -20,8 +20,8 @@ CONTENT_TEXTS = [
 ]
 
 
-def _write_episode(root, index, n=40):
-    transcripts = root / "Show" / f"Episode_{index}" / "transcripts"
+def _write_labeled_run(root, index, n=40):
+    transcripts = root / "Show" / f"Audio_{index}" / "transcripts"
     transcripts.mkdir(parents=True)
     sentences = []
     cut_ranges = [[0.0, n * 5.0 / 2]]  # first half labeled as ad
@@ -39,7 +39,7 @@ def _write_episode(root, index, n=40):
 @pytest.fixture
 def trained_model(tmp_path, monkeypatch):
     for i in range(6):
-        _write_episode(tmp_path / "output", i)
+        _write_labeled_run(tmp_path / "output", i)
     model_path = str(tmp_path / "model.joblib")
     monkeypatch.setattr(tc, "TEXT_CLASSIFIER_PATH", model_path)
     monkeypatch.setattr(tc, "USE_TEXT_CLASSIFIER", True)

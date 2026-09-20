@@ -41,7 +41,7 @@ class DiscordAlerter:
             return None
 
     def send_error_alert(
-        self, error, context="", episode_name="", podcast_name="", additional_info=None
+        self, error, context="", name="", source="", additional_info=None
     ):
         """
         Send a detailed error alert to Discord
@@ -49,8 +49,8 @@ class DiscordAlerter:
         Args:
             error: The exception object or error message
             context: Additional context about where the error occurred
-            episode_name: Name of the episode being processed when error occurred
-            podcast_name: Name of the podcast being processed when error occurred
+            name: Name of the audio being processed when error occurred
+            source: Source the audio belongs to
             additional_info: Dictionary of additional information to include
         """
         if not self.webhook_url:
@@ -83,11 +83,11 @@ class DiscordAlerter:
                 f"**Instance ID:** {self.instance_id}",
             ]
 
-            if podcast_name:
-                message_parts.append(f"**Podcast:** {podcast_name}")
+            if source:
+                message_parts.append(f"**Source:** {source}")
 
-            if episode_name:
-                message_parts.append(f"**Episode:** {episode_name}")
+            if name:
+                message_parts.append(f"**Audio:** {name}")
 
             if context:
                 message_parts.append(f"**Context:** {context}")
@@ -139,8 +139,8 @@ class DiscordAlerter:
     def send_processing_alert(
         self,
         message_type,
-        podcast_name="",
-        episode_name="",
+        source="",
+        name="",
         additional_info=None,
         alert_title="PROCESSING",
     ):
@@ -149,8 +149,8 @@ class DiscordAlerter:
 
         Args:
             message_type: Type of message (success, started, warning, etc.)
-            podcast_name: Name of the podcast
-            episode_name: Name of the episode
+            source: Source the audio belongs to
+            name: Name of the audio
             additional_info: Dictionary of additional information
         """
         if not self.webhook_url:
@@ -176,11 +176,11 @@ class DiscordAlerter:
                 f"**Instance ID:** {self.instance_id}",
             ]
 
-            if podcast_name:
-                message_parts.append(f"**Podcast:** {podcast_name}")
+            if source:
+                message_parts.append(f"**Source:** {source}")
 
-            if episode_name:
-                message_parts.append(f"**Episode:** {episode_name}")
+            if name:
+                message_parts.append(f"**Audio:** {name}")
 
             if additional_info:
                 for key, value in additional_info.items():
@@ -210,22 +210,22 @@ discord_alerter = DiscordAlerter()
 
 
 def send_error_alert(
-    error, context="", episode_name="", podcast_name="", additional_info=None
+    error, context="", name="", source="", additional_info=None
 ):
     """
     Convenience function to send error alerts
     """
     return discord_alerter.send_error_alert(
-        error, context, episode_name, podcast_name, additional_info
+        error, context, name, source, additional_info
     )
 
 
 def send_processing_alert(
-    message_type, podcast_name="", episode_name="", additional_info=None
+    message_type, source="", name="", additional_info=None
 ):
     """
     Convenience function to send processing alerts
     """
     return discord_alerter.send_processing_alert(
-        message_type, podcast_name, episode_name, additional_info
+        message_type, source, name, additional_info
     )

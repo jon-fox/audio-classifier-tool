@@ -227,13 +227,13 @@ def _write_decision(
         logger.error(f"Could not write decision file {decision_path}: {e}")
 
 
-def fetch_sponsors(podcast_description):
+def fetch_sponsors(description):
     if not get_detection_config().sponsor_instructions:
         logger.info("No sponsor_instructions in detection config, skipping")
         return []
-    logger.info(f"Fetching sponsors for podcast description: {podcast_description}")
+    logger.info(f"Fetching sponsors for description: {description}")
     try:
-        result = _run(_get_sponsor_agent().run(podcast_description))
+        result = _run(_get_sponsor_agent().run(description))
         sponsors = result.output.sponsors
         logger.info(f"Sponsors: {sponsors}")
         return sponsors

@@ -27,7 +27,7 @@ dependencies = [
 audioclassifier = "audioclassifier.cli:main"
 
 [tool.pytest.ini_options]
-markers = ["integration: full episode run; needs OPENAI_API_KEY and network"]
+markers = ["integration: full pipeline run; needs OPENAI_API_KEY and network"]
 addopts = "-m 'not integration'"
 
 [build-system]

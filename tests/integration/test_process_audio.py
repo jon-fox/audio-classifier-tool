@@ -1,4 +1,4 @@
-"""Full pipeline run against a real episode; doubles as the library usage example.
+"""Full pipeline run against real audio; doubles as the library usage example.
 
 Requires OPENAI_API_KEY and AUDIOCLASSIFIER_TEST_URL; run with:
     uv run pytest -m integration
@@ -13,16 +13,16 @@ import audioclassifier
 pytestmark = pytest.mark.integration
 
 
-def test_process_episode():
+def test_process_audio():
     if not os.getenv("OPENAI_API_KEY"):
         pytest.skip("set OPENAI_API_KEY")
     url = os.getenv("AUDIOCLASSIFIER_TEST_URL")
     if not url:
-        pytest.skip("set AUDIOCLASSIFIER_TEST_URL to an episode mp3 url")
+        pytest.skip("set AUDIOCLASSIFIER_TEST_URL to an mp3 url")
 
-    result = audioclassifier.process_episode(
-        podcast_name="Integration Test",
-        episode_name="Test Episode",
+    result = audioclassifier.process_audio(
+        source="Integration Test",
+        name="Test Audio",
         audio_url=url,
     )
 

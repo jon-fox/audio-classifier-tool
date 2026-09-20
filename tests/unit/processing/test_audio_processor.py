@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 import soundfile as sf
 
-from audioclassifier.pod_handler.audio_processor import (
+from audioclassifier.processing.audio_processor import (
     _cut_ranges,
     _join_with_crossfade,
     _snap_cut_ranges,
