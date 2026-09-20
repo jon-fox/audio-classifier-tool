@@ -19,17 +19,18 @@ from audioclassifier.detection.llm_detector import (
 )
 from audioclassifier.logger.logger_setup import logger
 
-_keywords_compiled = None
+# Compiled keywords, cached per config so a config change takes effect
+_keywords_cache = (None, None)
 
 
 def get_keywords_compiled():
-    global _keywords_compiled
-    if _keywords_compiled is None:
-        _keywords_compiled = [
-            re.compile(pattern, re.IGNORECASE)
-            for pattern in get_detection_config().keywords
-        ]
-    return _keywords_compiled
+    global _keywords_cache
+    config = get_detection_config()
+    cached_config, compiled = _keywords_cache
+    if cached_config is not config:
+        compiled = [re.compile(pattern, re.IGNORECASE) for pattern in config.keywords]
+        _keywords_cache = (config, compiled)
+    return compiled
 
 def update_ad_keywords_with_sponsors(podcast_description):
     if podcast_description:

@@ -22,20 +22,26 @@ def wheel(tmp_path_factory):
     return glob.glob(str(dist / "*.whl"))[0]
 
 
-def test_installed_package_imports_with_bundled_config(wheel, tmp_path):
+def test_installed_package_configures_from_parts(wheel, tmp_path):
     code = (
-        "import audioclassifier; "
-        "from audioclassifier.config.detection_config import get_detection_config; "
-        "c = get_detection_config(); "
-        "print(c.name, len(c.keywords), callable(audioclassifier.process_episode))"
+        "import audioclassifier\n"
+        "from audioclassifier.config.detection_config import get_detection_config, set_detection_config\n"
+        "err = None\n"
+        "try:\n"
+        "    get_detection_config()\n"
+        "except RuntimeError as e:\n"
+        "    err = 'guided-error' if 'No detection config' in str(e) else 'wrong-error'\n"
+        "c = set_detection_config(instructions='Find X. {optional_sponsors_section}', keywords=['x'])\n"
+        "print(err, c.name, len(c.keywords), callable(audioclassifier.process_episode))"
     )
     out = _run(
         ["uv", "run", "--no-project", "--with", wheel, "python", "-c", code],
         cwd=tmp_path,  # away from the repo so imports come from the wheel
     )
-    name, keyword_count, has_api = out.stdout.split()
-    assert name == "ads"
-    assert int(keyword_count) > 100
+    err, name, keyword_count, has_api = out.stdout.split()
+    assert err == "guided-error"
+    assert name == "custom"
+    assert keyword_count == "1"
     assert has_api == "True"
 
 

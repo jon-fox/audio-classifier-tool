@@ -5,7 +5,7 @@ Detects and cuts target segments (ads by default) from podcast audio. Installabl
 ## Commands
 
 - `uv sync` — install deps + the package (uv only, no pip/requirements.txt)
-- `PAYLOAD='{"podcast_name": ..., "episode_name": ..., "audio_url": ...}' uv run audioclassifier` — process one episode (needs `OPENAI_API_KEY`, `ffmpeg`)
+- `PAYLOAD='{"podcast_name": ..., "episode_name": ..., "audio_url": ...}' uv run audioclassifier --detection examples/configs/ads.toon` — process one episode (needs `OPENAI_API_KEY`, `ffmpeg`)
 - `uv run pytest` — unit tests; `-m integration` for the full-episode run (see tests/README.md)
 - CLI logs go to `audioclassifier.log`, not the console; library imports are side-effect free (NullHandler logger)
 
@@ -16,7 +16,7 @@ Detects and cuts target segments (ads by default) from podcast audio. Installabl
 - `pod_handler/` — download, transcribe (faster-whisper), cut (soundfile/numpy)
 - `detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider)
 - `config/` — settings (env first, SSM in AWS mode), constants, detection config loader
-- `configs/*.toon` — bundled detection keywords + prompts (TOON); names also resolve from `./configs/`
+- No bundled classifier: users supply a `.toon` config (names resolve from `./configs/`) or pass instructions/keywords directly; examples in `examples/configs/`
 
 ## Code Style
 

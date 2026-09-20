@@ -5,6 +5,12 @@
     uv run python examples/process_episode.py "<episode-mp3-url>" \
         --podcast "My Podcast" --episode "Episode 1"
 
+The classifier is config-driven: --detection selects what gets found and cut.
+This example defaults to the ad classifier at examples/configs/ads.toon;
+examples/configs/politics.toon shows a different classifier — pass it with:
+
+    --detection examples/configs/politics.toon
+
 Progress streams to the console; results and per-segment LLM decisions are
 printed at the end.
 """
@@ -23,7 +29,12 @@ def main():
     parser.add_argument("audio_url", help="episode mp3 url")
     parser.add_argument("--podcast", default="Example Podcast")
     parser.add_argument("--episode", default="Example Episode")
-    parser.add_argument("--detection", help="detection config name or .toon path")
+    parser.add_argument(
+        "--detection",
+        default=os.path.join(os.path.dirname(__file__), "configs", "ads.toon"),
+        help="detection config .toon path or a name in ./configs "
+        "(default: the example ad classifier)",
+    )
     args = parser.parse_args()
 
     logger = logging.getLogger("audioclassifier")
@@ -32,6 +43,7 @@ def main():
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
+    print(f"Detection config: {args.detection}")
     result = audioclassifier.process_episode(
         podcast_name=args.podcast,
         episode_name=args.episode,

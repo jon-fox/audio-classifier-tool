@@ -73,32 +73,34 @@ class SponsorList(BaseModel):
     sponsors: list[str]
 
 
-_detection_agent = None
-_sponsor_agent = None
+# Agents are cached per config so a config change rebuilds them
+_agent_cache = {}
+
+
+def _get_agent(kind, output_type, instructions):
+    config = get_detection_config()
+    cached_config, agent = _agent_cache.get(kind, (None, None))
+    if cached_config is not config:
+        _ensure_api_key()
+        agent = Agent(LLM_MODEL, output_type=output_type, instructions=instructions)
+        _agent_cache[kind] = (config, agent)
+    return agent
 
 
 def _get_detection_agent():
-    global _detection_agent
-    if _detection_agent is None:
-        _ensure_api_key()
-        _detection_agent = Agent(
-            LLM_MODEL,
-            output_type=DetectionResult,
-            instructions=get_detection_config().assistant_instructions,
-        )
-    return _detection_agent
+    return _get_agent(
+        "detection",
+        DetectionResult,
+        get_detection_config().assistant_instructions,
+    )
 
 
 def _get_sponsor_agent():
-    global _sponsor_agent
-    if _sponsor_agent is None:
-        _ensure_api_key()
-        _sponsor_agent = Agent(
-            LLM_MODEL,
-            output_type=SponsorList,
-            instructions=get_detection_config().sponsor_instructions,
-        )
-    return _sponsor_agent
+    return _get_agent(
+        "sponsor",
+        SponsorList,
+        get_detection_config().sponsor_instructions,
+    )
 
 
 def evaluate_detection(result):

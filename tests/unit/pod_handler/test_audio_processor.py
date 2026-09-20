@@ -35,9 +35,17 @@ def test_snap_to_transcript_edges():
 
 
 def test_keyword_gate():
-    assert has_ad_keywords([SimpleNamespace(text="use code PODCAST at checkout")], [])
-    assert not has_ad_keywords([SimpleNamespace(text="we discussed philosophy")], [])
-    assert has_ad_keywords([SimpleNamespace(text="thanks to acme corp")], ["acme"])
+    import audioclassifier.config.detection_config as dc
+
+    dc.set_detection_config("examples/configs/ads.toon")
+    try:
+        assert has_ad_keywords(
+            [SimpleNamespace(text="use code PODCAST at checkout")], []
+        )
+        assert not has_ad_keywords([SimpleNamespace(text="we discussed philosophy")], [])
+        assert has_ad_keywords([SimpleNamespace(text="thanks to acme corp")], ["acme"])
+    finally:
+        dc._config = None
 
 
 def test_mp3_roundtrip(tmp_path):

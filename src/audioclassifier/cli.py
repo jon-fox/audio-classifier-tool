@@ -4,7 +4,10 @@ import sys
 
 from audioclassifier.logger.logger_setup import configure_logging, logger
 from audioclassifier.pod_handler.mp3_handler import mp3_handler
-from audioclassifier.config.detection_config import set_detection_config
+from audioclassifier.config.detection_config import (
+    get_detection_config,
+    set_detection_config,
+)
 import json
 from datetime import datetime
 from audioclassifier.config.settings import AWS_ENABLED
@@ -127,12 +130,20 @@ def main():
     )
     parser.add_argument(
         "--detection",
-        help="detection config: a name in configs/ (default: ads) or a path to a .toon file",
+        help="detection config: a name in ./configs or a path to a .toon file",
     )
     args = parser.parse_args()
-    if args.detection:
-        config = set_detection_config(args.detection)
-        logger.info(f"Using detection config: {config.name}")
+    try:
+        config = (
+            set_detection_config(args.detection)
+            if args.detection
+            else get_detection_config()
+        )
+    except (RuntimeError, FileNotFoundError, ValueError) as e:
+        logger.error(str(e))
+        print(e, file=sys.stderr)
+        sys.exit(1)
+    logger.info(f"Using detection config: {config.name}")
 
     payload = os.getenv("PAYLOAD")
     if not payload:

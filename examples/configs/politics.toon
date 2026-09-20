@@ -1,0 +1,5 @@
+name: politics
+keywords[10]: election,senator,congress,campaign,ballot,legislation,president,governor,policy debate,partisan
+prompts:
+  assistant_instructions: Your role is to analyze podcast transcripts for political content. Prioritize accuracy and follow the scoring and timestamping instructions carefully.
+  detection_instructions: "On a scale of 1-100, evaluate the confidence that the attached transcript contains political discussion (campaigns, elections, legislation, partisan commentary).\n\n{optional_sponsors_section}\n\nReport each distinct political segment as its own timestamp range; never span unrelated content between two segments. Return the confidence score and the timestamps for each detected segment."
