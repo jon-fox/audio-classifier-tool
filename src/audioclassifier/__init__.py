@@ -9,6 +9,7 @@ def process_audio(
     detection_instructions=None,
     detection_keywords=None,
     description=None,
+    storage=None,
 ):
     """Process one audio file: download, transcribe, detect, and cut.
 
@@ -16,8 +17,10 @@ def process_audio(
     output filenames. detection: a config name (in ./configs) or a .toon path;
     detection_instructions / detection_keywords override the selected config
     directly. description is optional context about the audio for the
-    detection config's context-extraction prompt. Returns a dict with
-    output_path, filtered_duration, original_duration, and seconds_removed.
+    detection config's context-extraction prompt. storage: optional
+    s3://bucket/prefix — outputs are uploaded under <prefix>/<source>/<name>/.
+    Returns a dict with output_path, filtered_duration, original_duration,
+    seconds_removed, and (with storage) the uploaded S3 URIs.
 
     Configure the "audioclassifier" logger to see progress; set OPENAI_API_KEY
     (or the provider key matching LLM_MODEL) before calling.
@@ -39,6 +42,7 @@ def process_audio(
             "name": name,
             "audio_url": audio_url,
             "description": description,
+            "storage": storage,
         }
     )
 

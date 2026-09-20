@@ -1,44 +1,25 @@
+import os
+
 import requests
 import traceback
 from datetime import datetime
-from audioclassifier.config import settings
 from audioclassifier.config.constants import DISCORD_ALERTS_ENABLED
-from audioclassifier.config.settings import AWS_ENABLED, get_setting
 from audioclassifier.logger.logger_setup import logger
 
 
 class DiscordAlerter:
     def __init__(self):
         self.webhook_url = None
-        self.instance_id = "UNKNOWN"
 
         if not DISCORD_ALERTS_ENABLED:
             logger.info("Discord alerts disabled (set DISCORD_ALERTS=true to enable)")
             return
 
-        try:
-            self.webhook_url = get_setting(settings.DISCORD_WEBHOOK_URL)
-            if not self.webhook_url:
-                logger.warning(
-                    "DISCORD_ALERTS is enabled but no webhook is configured, alerts disabled"
-                )
-            # Use lazy import to avoid circular dependency
-            self.instance_id = self._get_instance_id() or "UNKNOWN"
-        except Exception as e:
-            logger.error(f"Failed to initialize Discord alerter: {e}")
-            self.webhook_url = None
-
-    def _get_instance_id(self):
-        """Lazy import to avoid circular dependency"""
-        if not AWS_ENABLED:
-            return None
-        try:
-            from audioclassifier.cloud.aws.ec2 import get_instance_id
-
-            return get_instance_id()
-        except ImportError as e:
-            logger.warning(f"Could not import get_instance_id: {e}")
-            return None
+        self.webhook_url = os.getenv("DISCORD_WEBHOOK_URL")
+        if not self.webhook_url:
+            logger.warning(
+                "DISCORD_ALERTS is enabled but DISCORD_WEBHOOK_URL is not set, alerts disabled"
+            )
 
     def send_error_alert(
         self, error, context="", name="", source="", additional_info=None
@@ -80,7 +61,6 @@ class DiscordAlerter:
             message_parts = [
                 "🚨 **AUDIOCLASSIFIER APP ERROR ALERT** 🚨",
                 f"**Timestamp:** {timestamp}",
-                f"**Instance ID:** {self.instance_id}",
             ]
 
             if source:
@@ -173,7 +153,6 @@ class DiscordAlerter:
                 f"{emoji} **AUDIOCLASSIFIER {alert_title} UPDATE**",
                 f"**Type:** {message_type.upper()}",
                 f"**Timestamp:** {timestamp}",
-                f"**Instance ID:** {self.instance_id}",
             ]
 
             if source:

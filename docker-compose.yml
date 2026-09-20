@@ -2,7 +2,6 @@ services:
   audioclassifier:
     build: .
     environment:
-      - APP_MODE=local
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - PAYLOAD=${PAYLOAD}
       - DETECTION_CONFIG=${DETECTION_CONFIG:-ads}

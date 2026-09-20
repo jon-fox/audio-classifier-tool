@@ -1,6 +1,6 @@
 # AudioClassifier
 
-Detects and cuts target segments (ads by default) from audio. Installable package (`audioclassifier`) usable as a library (`audioclassifier.process_audio`) or CLI. AWS adapters under `cloud/` are currently unwired from the processing path.
+Detects and cuts target segments (ads by default) from audio. Installable package (`audioclassifier`) usable as a library (`audioclassifier.process_audio`) or CLI.
 
 ## Commands
 
@@ -14,12 +14,15 @@ Detects and cuts target segments (ads by default) from audio. Installable packag
 - `__init__.py` — public API: `process_audio(...)`, `train_text_classifier()`
 - `cli.py` — CLI entry point; `--detection <name|path>` selects a detection config
 - `processing/` — download, transcribe (faster-whisper), cut (soundfile/numpy)
-- `detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider)
-- `config/` — settings (env first, SSM in AWS mode), constants, detection config loader
+- `detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider), self-distilled text classifier
+- `config/` — constants, detection config loader
+- `cloud/` — all cloud integrations live here, nothing cloud-touching outside it (today: optional S3 upload of outputs via `storage=`)
 - No bundled classifier: users supply a `.toon` config (names resolve from `./configs/`) or pass instructions/keywords directly; examples in `examples/configs/`
+- `tests/unit/` mirrors this layout (`tests/unit/cloud/test_storage.py` ↔ `cloud/storage.py`)
 
 ## Code Style
 
 - Comments only when necessary, and concise — no narrating what the code already says
 - Simple implementations over clever ones; no complexity for its own sake
 - Standard Python conventions; `_`-prefix for module-internal functions and state
+- Segregate by concern into packages — cloud code under `cloud/`, detection under `detection/`, audio work under `processing/`

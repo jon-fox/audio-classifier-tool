@@ -10,6 +10,7 @@ from audioclassifier.config.detection_config import (
 )
 import json
 from audioclassifier.config.constants import USE_TEXT_CLASSIFIER
+from audioclassifier.detection.llm_detector import _ensure_api_key
 from audioclassifier.util import generate_hash, sanitize_name
 from audioclassifier.alerts.discord_alerts import send_error_alert, send_processing_alert
 
@@ -68,6 +69,15 @@ def process_payload(payload={}):
     )
     logger.info(f"Processing result::{result}")
 
+    storage = payload.get("storage")
+    if storage:
+        from audioclassifier.cloud.storage import upload_outputs
+
+        result["uploaded"] = upload_outputs(
+            os.path.dirname(result["output_path"]),
+            f"{storage.rstrip('/')}/{source}/{sanitize_name(name)}",
+        )
+
     # Send success alert
     send_processing_alert(
         message_type="success",
@@ -110,6 +120,13 @@ def main():
         print(e, file=sys.stderr)
         sys.exit(1)
     logger.info(f"Using detection config: {config.name}")
+
+    try:
+        _ensure_api_key()
+    except RuntimeError as e:
+        logger.error(str(e))
+        print(e, file=sys.stderr)
+        sys.exit(1)
 
     payload = os.getenv("PAYLOAD")
     if not payload:

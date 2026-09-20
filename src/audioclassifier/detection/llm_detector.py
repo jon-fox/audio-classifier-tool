@@ -18,16 +18,13 @@ from audioclassifier.config.constants import (
     MIN_CUT_SECONDS,
 )
 from audioclassifier.logger.logger_setup import logger
-from audioclassifier.config import settings
-from audioclassifier.config.settings import get_setting
 from audioclassifier.config.detection_config import get_detection_config
 
+
 def _ensure_api_key():
-    # For OpenAI models, resolve the key through settings (env var, or SSM in
-    # AWS mode) and expose it where pydantic-ai looks for it. Other providers
-    # use their own standard env vars (ANTHROPIC_API_KEY, ...).
+    # Other providers use their own standard env vars (ANTHROPIC_API_KEY, ...)
     if LLM_MODEL.startswith("openai") and not os.getenv("OPENAI_API_KEY"):
-        os.environ["OPENAI_API_KEY"] = get_setting(settings.OPENAI_API_KEY)
+        raise RuntimeError(f"Set OPENAI_API_KEY to use {LLM_MODEL}")
 
 # All agent calls run on one persistent background event loop. The agents'
 # async HTTP connection pool is bound to the loop it first runs on, so calls

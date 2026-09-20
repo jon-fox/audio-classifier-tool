@@ -85,7 +85,7 @@ One audio file per `process_audio` call. Multiple processes are safe, even in th
 
 - `LLM_MODEL` — any [pydantic-ai model string](https://ai.pydantic.dev/models/) (default `openai:gpt-5.6`; e.g. `openai:gpt-5-nano` for cheapest, `anthropic:claude-sonnet-4-6`, `ollama:qwen3` — non-OpenAI providers may need their extra installed)
 - `DISCORD_ALERTS=true DISCORD_WEBHOOK_URL=<url>` — processing alerts in Discord
-- `APP_MODE=aws` — optional: resolve config (e.g. the OpenAI key) from SSM; the storage adapters under `audioclassifier/cloud/` are currently unwired
+- `storage="s3://bucket/prefix"` (API) or `"storage"` in `PAYLOAD` — upload the run's outputs (audio + transcripts + decisions) to S3 under `<prefix>/<source>/<name>/`, using ambient AWS credentials
 
 ## License
 
