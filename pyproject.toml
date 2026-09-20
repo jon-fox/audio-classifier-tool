@@ -1,5 +1,5 @@
 [project]
-name = "audioclassifier"
+name = "audio-classifier-tool"
 version = "1.2.0"
 description = "Detect and cut target segments (ads by default) from audio, config-driven and LLM-verified"
 readme = "README.md"

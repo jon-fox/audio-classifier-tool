@@ -29,7 +29,7 @@ Drop `--gpus all` to run on CPU (slower). The same container runs on any GPU box
 ## As a Library
 
 ```bash
-uv add git+https://github.com/jon-fox/audio-classifier-tool
+uv add audio-classifier-tool      # pip install audio-classifier-tool
 ```
 
 ```python
