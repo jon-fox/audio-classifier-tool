@@ -1,7 +1,7 @@
 [project]
 name = "audio-classifier-tool"
 version = "1.2.0"
-description = "Detect and cut target segments (ads by default) from audio, config-driven and LLM-verified"
+description = "Detect and cut target segments from audio — you define the classifier (ad removal is the flagship example), LLM-verified"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"

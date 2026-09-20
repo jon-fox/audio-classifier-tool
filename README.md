@@ -60,7 +60,7 @@ uv run python examples/process_audio.py "<mp3-url>"
 
 - Downloads the audio from the `PAYLOAD` JSON (`source`, `name`, `audio_url`, optional `description`)
 - Transcribes with faster-whisper (GPU-accelerated, CPU works too)
-- Detects target segments with OpenAI — ads by default
+- Detects target segments with an LLM, guided by your detection config (ad removal is the flagship example)
 - Cuts them and re-assembles the audio
 
 ## Detection

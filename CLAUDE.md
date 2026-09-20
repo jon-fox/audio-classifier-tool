@@ -1,6 +1,6 @@
 # AudioClassifier
 
-Detects and cuts target segments (ads by default) from audio. Installable package (`audioclassifier`) usable as a library (`audioclassifier.process_audio`) or CLI.
+Detects and cuts target segments from audio; the user-supplied detection config defines the target (ads are the flagship example, nothing is bundled). Installable package (`audioclassifier`) usable as a library (`audioclassifier.process_audio`) or CLI.
 
 ## Commands
 

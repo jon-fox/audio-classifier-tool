@@ -1,4 +1,4 @@
-"""AudioClassifier: detect and cut target segments from audio (ads by default)."""
+"""AudioClassifier: detect and cut target segments from audio, defined by your detection config."""
 
 
 def process_audio(
