@@ -6,8 +6,9 @@ import soundfile as sf
 from audioclassifier.pod_handler.audio_processor import (
     _cut_ranges,
     _join_with_crossfade,
-    _snap_to_transcript,
-    has_ad_keywords,
+    _snap_cut_ranges,
+    find_audio_boundaries,
+    find_keyword_hits,
 )
 
 SR = 1000
@@ -29,23 +30,47 @@ def test_crossfade_join_length_and_dtype():
     assert len(out) == 900
 
 
-def test_snap_to_transcript_edges():
+def test_snap_prefers_audio_boundaries_then_transcript_edges():
     transcript = [SimpleNamespace(start=s, end=s + 4.0, text="w") for s in range(0, 600, 5)]
-    assert _snap_to_transcript([[61.8, 118.3]], transcript) == [[60, 119.0]]
+    # start snaps to the nearby audio boundary; end (no boundary near) to a transcript edge
+    assert _snap_cut_ranges([[61.8, 118.3]], transcript, [60.5]) == [[60.5, 119.0]]
+    # no boundaries at all: transcript edges only
+    assert _snap_cut_ranges([[61.8, 118.3]], transcript, []) == [[60, 119.0]]
 
 
-def test_keyword_gate():
+def test_find_keyword_hits():
     import audioclassifier.config.detection_config as dc
 
     dc.set_detection_config("examples/configs/ads.toon")
     try:
-        assert has_ad_keywords(
-            [SimpleNamespace(text="use code PODCAST at checkout")], []
-        )
-        assert not has_ad_keywords([SimpleNamespace(text="we discussed philosophy")], [])
-        assert has_ad_keywords([SimpleNamespace(text="thanks to acme corp")], ["acme"])
+        transcript = [
+            SimpleNamespace(start=10.0, text="use code PODCAST at checkout"),
+            SimpleNamespace(start=20.0, text="we discussed philosophy"),
+            SimpleNamespace(start=30.0, text="thanks to acme corp"),
+        ]
+        assert find_keyword_hits(transcript, ["acme"]) == [10.0, 30.0]
+        assert find_keyword_hits(transcript[1:2], []) == []
     finally:
         dc._config = None
+
+
+def test_find_audio_boundaries_flags_silence_and_loudness_shift():
+    sr = 8000
+    quiet = (np.random.default_rng(0).normal(0, 300, 30 * sr)).astype(np.int16)
+    silence = np.zeros(2 * sr, dtype=np.int16)
+    loud = (np.random.default_rng(1).normal(0, 8000, 20 * sr)).astype(np.int16)
+    audio = np.concatenate([quiet, silence, loud, silence, quiet]).reshape(-1, 1)
+
+    boundaries = find_audio_boundaries(audio, sr)
+    # transitions at ~30s, ~32s, ~52s, ~54s
+    for expected in (30, 32, 52, 54):
+        assert any(abs(b - expected) <= 2.5 for b in boundaries), (expected, boundaries)
+
+
+def test_find_audio_boundaries_quiet_on_steady_audio():
+    sr = 8000
+    steady = (np.random.default_rng(2).normal(0, 3000, 60 * sr)).astype(np.int16)
+    assert find_audio_boundaries(steady.reshape(-1, 1), sr) == []
 
 
 def test_mp3_roundtrip(tmp_path):

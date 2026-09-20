@@ -139,30 +139,56 @@ def evaluate_detection(result):
     max_tries=5,
     giveup=lambda e: e.status_code != 429,
 )
-def get_specific_timestamps_using_llm(filename, path, sponsors):
+def get_specific_timestamps_using_llm(
+    filename, path, sponsors, keyword_hits=None, audio_boundaries=None
+):
     """Ask the LLM for ad ranges in a transcript segment.
 
-    Returns a list of [start, end] second ranges to cut (empty = keep all).
+    keyword_hits / audio_boundaries are advisory signals included in the
+    prompt. Returns a list of [start, end] second ranges to cut (empty =
+    keep all).
     """
     logger.info(f"Requesting timestamps for {filename}, sponsors: {sponsors}")
 
     with open(path, encoding="utf-8") as f:
         transcript = f.read()
 
+    signals = []
+    if keyword_hits:
+        signals.append(
+            f"- Ad-keyword/sponsor matches occur near these transcript times "
+            f"(seconds): {keyword_hits}"
+        )
+    if audio_boundaries:
+        signals.append(
+            f"- Audio discontinuities (silence gaps or loudness shifts, the "
+            f"typical signature of dynamically inserted ad boundaries) at "
+            f"these times (seconds): {audio_boundaries}"
+        )
+    signals_block = (
+        "\n\nAdditional detection signals (advisory, not exhaustive):\n"
+        + "\n".join(signals)
+        if signals
+        else ""
+    )
+
     result = _run(
         _get_detection_agent().run(
             f"{get_detection_config().get_detection_instructions(sponsors)}"
+            f"{signals_block}"
             f"\n\nTranscript segments (JSON):\n{transcript}"
         )
     )
     output = result.output
     logger.info(f"Detection result for {filename}: {output}")
     cut_ranges = evaluate_detection(output)
-    _write_decision(path, output, cut_ranges)
+    _write_decision(path, output, cut_ranges, keyword_hits, audio_boundaries)
     return cut_ranges
 
 
-def _write_decision(transcript_path, output, cut_ranges):
+def _write_decision(
+    transcript_path, output, cut_ranges, keyword_hits=None, audio_boundaries=None
+):
     decision_path = transcript_path.replace(".json", "_decision.json")
     try:
         with open(decision_path, "w", encoding="utf-8") as f:
@@ -173,6 +199,8 @@ def _write_decision(transcript_path, output, cut_ranges):
                     "reasoning": output.reasoning,
                     "action": "cut" if cut_ranges else "keep",
                     "cut_ranges_seconds": cut_ranges,
+                    "keyword_hits": keyword_hits or [],
+                    "audio_boundaries": audio_boundaries or [],
                 },
                 f,
                 indent=2,

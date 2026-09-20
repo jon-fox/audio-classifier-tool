@@ -19,6 +19,13 @@ MIN_CUT_SECONDS = 15  # drop detected ranges shorter than this (likely false pos
 MERGE_GAP_SECONDS = 3  # merge detected ranges separated by less than this
 CROSSFADE_MS = 30
 
+# Audio boundary detection (dynamic ad insertion signatures)
+SILENCE_DB = -45.0
+LOUDNESS_SHIFT_DB = 4.0
+BOUNDARY_WINDOW_SECONDS = 0.5
+SHIFT_SPAN_WINDOWS = 8  # loudness comparison span on each side, in windows (4s)
+SNAP_TOLERANCE_SECONDS = 3.0  # max distance to snap a cut edge to an audio boundary
+
 DISCORD_ALERTS_ENABLED = os.getenv("DISCORD_ALERTS", "false").lower() in (
     "1",
     "true",

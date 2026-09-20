@@ -49,21 +49,54 @@ def update_ad_keywords_with_sponsors(podcast_description):
     return []
 
 
-# Cheap gate: only segments with keyword/sponsor hits go to the LLM
-def has_ad_keywords(transcript, sponsors):
+def find_keyword_hits(transcript, sponsors):
+    """Transcript times (seconds) where ad keywords or sponsor names appear."""
+    hits = []
     for t_segment in transcript:
         text = t_segment.text.lower()
         if any(company in text for company in sponsors) or any(
             pattern.search(text) for pattern in get_keywords_compiled()
         ):
-            return True
-    return False
+            hits.append(round(t_segment.start, 1))
+    return hits[:40]
 
 
+def find_audio_boundaries(audio_segment, samplerate):
+    """Times (seconds) of silence gaps and loudness shifts — the acoustic
+    signature of dynamic ad insertion points."""
+    window = int(samplerate * BOUNDARY_WINDOW_SECONDS)
+    frames = len(audio_segment) // window if window else 0
+    if frames < SHIFT_SPAN_WINDOWS * 2:
+        return []
+
+    mono = audio_segment[: frames * window].mean(axis=1).astype(np.float64)
+    rms = np.sqrt((mono.reshape(frames, window) ** 2).mean(axis=1))
+    db = 20 * np.log10(rms / 32768 + 1e-10)
+    silent = db < SILENCE_DB
+
+    boundaries = [
+        i * BOUNDARY_WINDOW_SECONDS
+        for i in range(1, frames)
+        if silent[i] != silent[i - 1]
+    ]
+
+    if (~silent).any():
+        # Loudness shifts, with silent windows neutralized to the speech median
+        filled = np.where(silent, np.median(db[~silent]), db)
+        for i in range(SHIFT_SPAN_WINDOWS, frames - SHIFT_SPAN_WINDOWS):
+            before = filled[i - SHIFT_SPAN_WINDOWS : i].mean()
+            after = filled[i : i + SHIFT_SPAN_WINDOWS].mean()
+            if abs(after - before) >= LOUDNESS_SHIFT_DB:
+                boundaries.append(i * BOUNDARY_WINDOW_SECONDS)
+
+    boundaries.sort()
+    deduped = []
+    for boundary in boundaries:
+        if not deduped or boundary - deduped[-1] > 2.0:
+            deduped.append(round(boundary, 1))
+    return deduped[:30]
 
 
-# set PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
-# export PYTHONPATH="${PYTHONPATH}:/mnt/c/Developer_Workspace/AudioClassifier"
 # Initialize model_pool at the module level
 model_pool = Queue()
 
@@ -111,9 +144,7 @@ def initialize_model_pool(device="cuda"):
         model_pool.put(whisper_model)
 
 
-def process_audio_segment(
-    index, audio_segment, samplerate, total_segments, sponsors, transcripts_dir
-):
+def process_audio_segment(index, audio_segment, samplerate, sponsors, transcripts_dir):
     try:
         model = model_pool.get(block=True)  # Wait until a model is available
         logger.info(f"Thread using model {id(model)}, processing segment {index}")
@@ -136,11 +167,14 @@ def process_audio_segment(
 
     os.remove(segment_path)
 
-    # First and last segments are likely to carry pre/post-roll ads, so they
-    # always go to the LLM; the rest only when the keyword gate trips
-    if index not in (0, total_segments - 1) and not has_ad_keywords(result, sponsors):
-        logger.info(f"Segment {index}: no ad keywords, keeping as is")
-        return audio_segment
+    # Keywords and acoustic discontinuities are hints for the LLM, not gates:
+    # every segment gets examined
+    keyword_hits = find_keyword_hits(result, sponsors)
+    audio_boundaries = find_audio_boundaries(audio_segment, samplerate)
+    logger.info(
+        f"Segment {index}: keyword hits at {keyword_hits}, "
+        f"audio boundaries at {audio_boundaries}"
+    )
 
     transcript = [
         {"start": s.start, "end": s.end, "text": s.text} for s in result
@@ -150,30 +184,42 @@ def process_audio_segment(
         json.dump(transcript, file, indent=2, ensure_ascii=False)
 
     cut_ranges = get_specific_timestamps_using_llm(
-        f"transcript_{index}.json", transcript_path, sponsors
+        f"transcript_{index}.json",
+        transcript_path,
+        sponsors,
+        keyword_hits=keyword_hits,
+        audio_boundaries=audio_boundaries,
     )
     if not cut_ranges:
         logger.info(f"Segment {index}: nothing to cut")
         return audio_segment
 
-    cut_ranges = _snap_to_transcript(cut_ranges, result)
+    cut_ranges = _snap_cut_ranges(cut_ranges, result, audio_boundaries)
     logger.info(f"Segment {index}: cutting ranges (seconds): {cut_ranges}")
     return _cut_ranges(audio_segment, cut_ranges, samplerate)
 
 
-def _snap_to_transcript(cut_ranges, transcript):
-    """Align cut boundaries to transcription segment edges to avoid mid-word cuts."""
-    if not transcript:
-        return cut_ranges
+def _snap_cut_ranges(cut_ranges, transcript, audio_boundaries):
+    """Snap cut edges to audio boundaries (silence/loudness shifts) when one is
+    close, else to transcription segment edges, so edits stay inaudible."""
     starts = [t.start for t in transcript]
     ends = [t.end for t in transcript]
     snapped = []
     for start, end in cut_ranges:
-        snapped_start = min(starts, key=lambda x: abs(x - start))
-        snapped_end = min(ends, key=lambda x: abs(x - end))
+        snapped_start = _snap_edge(start, audio_boundaries, starts)
+        snapped_end = _snap_edge(end, audio_boundaries, ends)
         if snapped_end > snapped_start:
             snapped.append([snapped_start, snapped_end])
     return snapped
+
+
+def _snap_edge(value, audio_boundaries, transcript_edges):
+    near = [b for b in audio_boundaries if abs(b - value) <= SNAP_TOLERANCE_SECONDS]
+    if near:
+        return min(near, key=lambda b: abs(b - value))
+    if transcript_edges:
+        return min(transcript_edges, key=lambda x: abs(x - value))
+    return value
 
 
 def _cut_ranges(audio, cut_ranges, samplerate):
@@ -264,7 +310,6 @@ def remove_ads_from_audio(
                 i,
                 segments[i],
                 samplerate,
-                len(segments),
                 sponsors,
                 transcripts_dir,
             ): i
