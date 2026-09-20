@@ -1,10 +1,18 @@
 [project]
 name = "audioclassifier"
-version = "1.1.0"
-description = "Dynamic Classifier and Audio Removal"
+version = "1.2.0"
+description = "Detect and cut target segments (ads by default) from audio, config-driven and LLM-verified"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
+authors = [{ name = "Jon Fox" }]
+keywords = ["audio", "podcast", "ads", "ad-removal", "whisper", "classifier"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Sound/Audio",
+]
 dependencies = [
     "backoff>=2.2.1",
     "boto3>=1.40.21",
@@ -22,6 +30,10 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "soundfile>=0.14.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/jon-fox/audio-classifier-tool"
+Repository = "https://github.com/jon-fox/audio-classifier-tool"
 
 [project.scripts]
 audioclassifier = "audioclassifier.cli:main"
