@@ -20,6 +20,14 @@ Detects and cuts target segments (ads by default) from audio. Installable packag
 - No bundled classifier: users supply a `.toon` config (names resolve from `./configs/`) or pass instructions/keywords directly; examples in `examples/configs/`
 - `tests/unit/` mirrors this layout (`tests/unit/cloud/test_storage.py` ↔ `cloud/storage.py`)
 
+## Versioning & Releases
+
+Published on PyPI as `audio-classifier-tool` (import name: `audioclassifier`); version lives in pyproject.toml.
+
+- Patch bump for fixes; minor bump for features and even breaking-ish changes
+- **Major bumps only when a human explicitly asks for one** — a new major is a deliberate, human-called milestone, never inferred from the size of a change
+- Release ritual: bump version in pyproject.toml → commit/push → run the "Publish to PyPI" workflow (manual dispatch; token from `PYPI_API_TOKEN` secret) → tag `vX.Y.Z` + GitHub release with matching notes. PyPI rejects re-uploads of an existing version, so every publish needs a bump first
+
 ## Code Style
 
 - Comments only when necessary, and concise — no narrating what the code already says
