@@ -5,7 +5,6 @@ import os
 BASE_PATH = os.getenv("BASE_PATH", ".")
 
 # Paths for downloads, models, and ad utilities based on the base path
-DOWNLOAD_DIR = os.path.join(BASE_PATH, "downloads")
 FINISHED_MP3_DIR = os.path.join(BASE_PATH, "output")
 MODEL_DOWNLOAD_PATH = os.path.join(BASE_PATH, "local_models", "tiny")
 # Any pydantic-ai model string works: openai:gpt-5, anthropic:claude-sonnet-4-6,

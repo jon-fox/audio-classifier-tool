@@ -3,6 +3,8 @@ import json
 import os
 import re
 import shutil
+import tempfile
+import threading
 import traceback
 from queue import Queue
 
@@ -100,6 +102,8 @@ def find_audio_boundaries(audio_segment, samplerate):
 
 # Initialize model_pool at the module level
 model_pool = Queue()
+_pool_lock = threading.Lock()
+_pool_initialized = False
 
 
 def check_cuda():
@@ -146,10 +150,12 @@ def initialize_model_pool(device="cuda"):
 
 
 def process_audio_segment(index, audio_segment, samplerate, sponsors, transcripts_dir):
+    segment_path = None
     try:
         model = model_pool.get(block=True)  # Wait until a model is available
         logger.info(f"Thread using model {id(model)}, processing segment {index}")
-        segment_path = f"segment_{index}.wav"
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            segment_path = tmp.name
         sf.write(segment_path, audio_segment, samplerate)
         result_generator, info = model.transcribe(segment_path, language="en")
         result = list(result_generator)
@@ -165,8 +171,9 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
             },
         )
         raise Exception(f"An error occurred during Transcription of segment {index}: {str(e)}")
-
-    os.remove(segment_path)
+    finally:
+        if segment_path and os.path.exists(segment_path):
+            os.remove(segment_path)
 
     # Keywords, acoustic discontinuities, and the trained classifier are hints
     # for the LLM, not gates: every segment gets examined
@@ -300,9 +307,12 @@ def remove_ads_from_audio(
     ]
 
     # Load models once; later episodes in the same process reuse the pool
-    if model_pool.empty():
-        logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
-        initialize_model_pool(check_cuda())
+    global _pool_initialized
+    with _pool_lock:
+        if not _pool_initialized:
+            logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
+            initialize_model_pool(check_cuda())
+            _pool_initialized = True
 
     # Using ThreadPoolExecutor to process each segment
     with concurrent.futures.ThreadPoolExecutor(

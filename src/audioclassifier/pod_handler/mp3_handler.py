@@ -2,6 +2,8 @@ import time
 import os
 import datetime
 import json
+import shutil
+import tempfile
 from audioclassifier.pod_handler.download_mp3 import download_episode
 
 from audioclassifier.pod_handler.audio_processor import remove_ads_from_audio
@@ -15,15 +17,6 @@ from audioclassifier.alerts.discord_alerts import send_error_alert
 
 BUCKET_NAME = get_setting(settings.APP_STORAGE_BUCKET)
 logger.info(f"Bucket name::{BUCKET_NAME}")
-
-
-def get_mp3_file(mp3_dir, filename):
-    """Get the full path to the single specified mp3 file."""
-
-    # Create the full path to the file
-    mp3_file = os.path.join(mp3_dir, filename)
-
-    return mp3_file
 
 
 def mp3_handler(
@@ -42,6 +35,9 @@ def mp3_handler(
         else "Unknown Episode"
     )
 
+    # Per-episode scratch space, so parallel processes never share files
+    work_dir = tempfile.mkdtemp(prefix="audioclassifier-")
+
     try:
         # Load the MP3 file
         start_time = time.time()
@@ -52,7 +48,7 @@ def mp3_handler(
 
         try:
             file_size, local_path = download_episode(
-                saved_episode_name, audio_url, DOWNLOAD_DIR
+                saved_episode_name, audio_url, work_dir
             )
         except Exception as e:
             send_error_alert(
@@ -74,7 +70,7 @@ def mp3_handler(
 
         try:
             podcast_length, original_duration, mp3_output_path = remove_ads_from_audio(
-                audio_file=get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
+                audio_file=local_path,
                 podcast_description=podcast_description,
                 output_dir=episode_output_dir,
                 output_name=write_to_db.sanitize_name(episode_name),
@@ -87,7 +83,7 @@ def mp3_handler(
                 podcast_name=podcast_name,
                 additional_info={
                     "hashkey": hashkey,
-                    "audio_file": get_mp3_file(DOWNLOAD_DIR, saved_episode_name),
+                    "audio_file": local_path,
                     "podcast_description_length": (
                         len(podcast_description) if podcast_description else 0
                     ),
@@ -224,33 +220,6 @@ def mp3_handler(
                 "Local mode: skipping DynamoDB metadata/status writes and transcript upload"
             )
 
-        # Clean up MP3 and WAV files in the downloads directory
-        audio_files = [
-            f
-            for f in os.listdir(DOWNLOAD_DIR)
-            if f.endswith(".mp3") or f.endswith(".wav")
-        ]
-        logger.info(f"Removing local audio files: {audio_files}")
-        for audio_file in audio_files:
-            try:
-                audio_path = os.path.join(DOWNLOAD_DIR, audio_file)
-                os.remove(audio_path)
-                logger.info(f"Removed local audio file: {audio_path}")
-            except Exception as e:
-                logger.error(f"Error removing local audio file: {e}")
-
-        # Clean up MP3 and WAV files in the base directory
-        audio_files = [
-            f for f in os.listdir(BASE_PATH) if f.endswith(".mp3") or f.endswith(".wav")
-        ]
-        for audio_file in audio_files:
-            try:
-                audio_path = os.path.join(BASE_PATH, audio_file)
-                os.remove(audio_path)
-                logger.info(f"Removed local audio file: {audio_path}")
-            except Exception as e:
-                logger.error(f"Error removing local audio file: {e}")
-
         return {
             "output_path": mp3_output_path,
             "filtered_duration": podcast_length,
@@ -277,3 +246,5 @@ def mp3_handler(
             except:
                 pass  # Don't fail on status update failure during error handling
         raise e
+    finally:
+        shutil.rmtree(work_dir, ignore_errors=True)

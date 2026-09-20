@@ -77,6 +77,10 @@ uv run python examples/train_classifier.py          # or audioclassifier.train_t
 
 How it propagates: the durable memory is the decision files in `output/` — the model file (`local_models/text_classifier.joblib`) is a disposable cache rebuilt from them. Editing a decision file's `cut_ranges_seconds` after listening feeds your correction into the next training pass. In Docker, mount `local_models/` alongside `output/` to carry the model between containers (the data already survives via the `output/` mount).
 
+## Parallelism
+
+One episode per `process_episode` call. Multiple processes are safe, even in the same directory — downloads and segment audio live in per-episode temp dirs, and the classifier model is written atomically. Within one process, run episodes sequentially (Whisper models load once and are reused); concurrent episodes in threads are supported only with one shared detection config. Don't feed the same episode to two processes at once — they'd write the same output files.
+
 ## Options
 
 - `LLM_MODEL` — any [pydantic-ai model string](https://ai.pydantic.dev/models/) (default `openai:gpt-5.6`; e.g. `openai:gpt-5-nano` for cheapest, `anthropic:claude-sonnet-4-6`, `ollama:qwen3` — non-OpenAI providers may need their extra installed)

@@ -72,7 +72,10 @@ def train(output_dir=FINISHED_MP3_DIR, model_path=TEXT_CLASSIFIER_PATH):
     pipeline.fit(train_x, train_y)
 
     os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    joblib.dump(pipeline, model_path)
+    # Atomic write so a parallel process never loads a half-written model
+    tmp_path = f"{model_path}.tmp.{os.getpid()}"
+    joblib.dump(pipeline, tmp_path)
+    os.replace(tmp_path, model_path)
 
     global _loaded
     _loaded = (pipeline, True)
