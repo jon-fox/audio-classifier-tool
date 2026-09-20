@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+.pytest_cache/
+dist/
 
 # App working dirs
 downloads/
@@ -17,9 +19,6 @@ local_models/
 *.out
 *.json
 *.txt
-
-# Training data
-training_data.*
 
 # macOS
 .DS_Store

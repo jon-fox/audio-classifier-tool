@@ -1,20 +1,22 @@
 # AudioClassifier
 
-Detects and cuts target segments (ads by default) from podcast audio. Local-first: `PAYLOAD` env var in, cleaned mp3 in `output/`. AWS (`APP_MODE=aws`) is an optional bolt-on isolated under `src/cloud/`.
+Detects and cuts target segments (ads by default) from podcast audio. Installable package (`audioclassifier`) usable as a library (`audioclassifier.process_episode`) or CLI. AWS (`APP_MODE=aws`) is an optional bolt-on isolated under `cloud/`.
 
 ## Commands
 
-- `uv sync` — install deps (uv only, no pip/requirements.txt)
-- `PAYLOAD='{"podcast_name": ..., "episode_name": ..., "audio_url": ...}' uv run python src/main.py` — process one episode (needs `OPENAI_API_KEY`, `ffmpeg`)
-- Logs go to `audioclassifier.log`, not the console
+- `uv sync` — install deps + the package (uv only, no pip/requirements.txt)
+- `PAYLOAD='{"podcast_name": ..., "episode_name": ..., "audio_url": ...}' uv run audioclassifier` — process one episode (needs `OPENAI_API_KEY`, `ffmpeg`)
+- `uv run pytest` — unit tests; `-m integration` for the full-episode run (see tests/README.md)
+- CLI logs go to `audioclassifier.log`, not the console; library imports are side-effect free (NullHandler logger)
 
-## Architecture
+## Architecture (src/audioclassifier/)
 
-- `src/main.py` — entry point; `--detection <name|path>` selects a detection config
-- `src/pod_handler/` — download, transcribe (faster-whisper), cut (soundfile/numpy)
-- `src/detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider)
-- `src/config/` — settings (env first, SSM in AWS mode), constants, detection config loader
-- `configs/*.toon` — detection keywords + prompts (TOON format)
+- `__init__.py` — public API: `process_episode(...)`
+- `cli.py` — CLI entry point; `--detection <name|path>` selects a detection config
+- `pod_handler/` — download, transcribe (faster-whisper), cut (soundfile/numpy)
+- `detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider)
+- `config/` — settings (env first, SSM in AWS mode), constants, detection config loader
+- `configs/*.toon` — bundled detection keywords + prompts (TOON); names also resolve from `./configs/`
 
 ## Code Style
 
