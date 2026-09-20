@@ -299,8 +299,10 @@ def remove_ads_from_audio(
         for i in range(0, len(audio), segment_duration_samples)
     ]
 
-    logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
-    initialize_model_pool(check_cuda())
+    # Load models once; later episodes in the same process reuse the pool
+    if model_pool.empty():
+        logger.info(f"Initializing Model Pool with {NUMBER_OF_MODELS} models")
+        initialize_model_pool(check_cuda())
 
     # Using ThreadPoolExecutor to process each segment
     with concurrent.futures.ThreadPoolExecutor(
