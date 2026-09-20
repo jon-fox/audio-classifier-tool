@@ -1,5 +1,7 @@
 # AudioClassifier - Dynamic Classifier used for Audio Segment Identification and Removal
 
+[![PyPI](https://img.shields.io/pypi/v/audio-classifier-tool)](https://pypi.org/project/audio-classifier-tool/) [![Python](https://img.shields.io/pypi/pyversions/audio-classifier-tool)](https://pypi.org/project/audio-classifier-tool/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Runs locally by default: one audio file in, filtered audio out. Needs an OpenAI API key and `ffmpeg`.
 
 ## Quick Start
