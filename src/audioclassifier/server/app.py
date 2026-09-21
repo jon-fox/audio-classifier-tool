@@ -89,6 +89,31 @@ def _read_status(episode_dir):
         return None
 
 
+def _progress(episode_dir):
+    """Fraction of analysis chunks finished, from the per-chunk decision files the
+    pipeline writes as it works. Needs duration_sec from the analyze request to know
+    the expected chunk count; capped below 1.0 because cutting/encoding follows."""
+    status = _read_status(episode_dir) or {}
+    duration = status.get("duration_sec")
+    if not duration:
+        return None
+    expected = max(int(duration // 600) + 1, 1)
+    transcripts_dir = os.path.join(episode_dir, "transcripts")
+    try:
+        done = len([f for f in os.listdir(transcripts_dir) if f.endswith("_decision.json")])
+    except OSError:
+        done = 0
+    return round(min(done / expected, 0.95), 2)
+
+
+def _processing_response(episode_dir):
+    content = {"status": "processing"}
+    progress = _progress(episode_dir)
+    if progress is not None:
+        content["progress"] = progress
+    return content
+
+
 def _write_status(episode_dir, status, **extra):
     os.makedirs(episode_dir, exist_ok=True)
     with open(os.path.join(episode_dir, STATUS_FILENAME), "w", encoding="utf-8") as f:
@@ -143,11 +168,11 @@ def analyze(request: AnalyzeRequest):
 
     with _active_lock:
         if episode_dir in _active:
-            return JSONResponse(status_code=202, content={"status": "processing"})
+            return JSONResponse(status_code=202, content=_processing_response(episode_dir))
         _active.add(episode_dir)
-    _write_status(episode_dir, "processing")
+    _write_status(episode_dir, "processing", duration_sec=request.duration_sec)
     _executor.submit(_run_job, request, episode_dir)
-    return JSONResponse(status_code=202, content={"status": "processing"})
+    return JSONResponse(status_code=202, content=_processing_response(episode_dir))
 
 
 @app.get("/v1/episodes/{episode_id}/segments", dependencies=[Depends(_require_token)])
@@ -161,7 +186,7 @@ def get_segments(episode_id: str):
     if data and data.get("model_version") == _model_version():
         return _done_response(episode_dir, data)
     if status.get("status") == "processing":
-        return {"status": "processing"}
+        return _processing_response(episode_dir)
     if data:  # stale manifest; the client invalidates via model_version
         return _done_response(episode_dir, data)
     if status.get("status") == "failed":
