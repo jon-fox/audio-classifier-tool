@@ -7,3 +7,16 @@ services:
       - DETECTION_CONFIG=${DETECTION_CONFIG:-ads}
     volumes:
       - ./output:/app/output
+
+  server:
+    build: .
+    command: /app/.venv/bin/uvicorn audioclassifier.server.app:app --host 0.0.0.0
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - API_TOKEN=${API_TOKEN}
+      - DETECTION_CONFIG=${DETECTION_CONFIG:-ads}
+      - STORAGE=${STORAGE:-}
+    volumes:
+      - ./output:/app/output

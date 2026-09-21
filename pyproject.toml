@@ -31,6 +31,12 @@ dependencies = [
     "soundfile>=0.14.0",
 ]
 
+[project.optional-dependencies]
+server = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
 [project.urls]
 Homepage = "https://github.com/jon-fox/audio-classifier-tool"
 Repository = "https://github.com/jon-fox/audio-classifier-tool"
@@ -52,5 +58,7 @@ packages = ["src/audioclassifier"]
 [dependency-groups]
 dev = [
     "black>=26.5.1",
+    "fastapi>=0.115",
+    "httpx>=0.28",
     "pytest>=9.1.1",
 ]

@@ -14,7 +14,7 @@ PAYLOAD='{"source": "My Show", "name": "Episode 1", "audio_url": "<mp3-url>"}' \
   uv run audioclassifier --detection examples/configs/ads.toon
 ```
 
-Results land in `output/<source>/<name>/`: the original mp3, the cleaned `*_filtered.mp3`, and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
+Results land in `output/<source>/<name>/`: the original mp3, the cleaned `*_filtered.mp3`, a `segments.json` manifest (episode-absolute millisecond cut segments with confidence, plus the sha256/size/ETag identity of the exact copy analyzed — for clients that skip segments during playback instead of using the filtered file), and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
 
 ```bash
 docker build -t audioclassifier-app .
@@ -55,6 +55,22 @@ For a real end-to-end run with live console output and a decision summary:
 ```bash
 uv run python examples/process_audio.py "<mp3-url>"
 ```
+
+## HTTP API (optional)
+
+A FastAPI wrapper serves segment manifests to clients (e.g. podcast apps that skip ads client-side). Install the `server` extra and run it:
+
+```bash
+uv sync --extra server
+API_TOKEN=<token> DETECTION_CONFIG=ads uv run uvicorn audioclassifier.server.app:app --host 0.0.0.0
+```
+
+Or `docker compose up server`. All requests need `Authorization: Bearer $API_TOKEN`.
+
+- `POST /v1/episodes/analyze` with `{"episode_id", "source", "audio_url", "duration_sec"}` — returns `200` with the full manifest if this episode was already analyzed under the current classifier setup (idempotent; a changed `model_version` re-analyzes), else `202 {"status": "processing"}`. Jobs run one at a time (the pipeline is single-run per process).
+- `GET /v1/episodes/{episode_id}/segments` — `{"status": "processing" | "failed" | "done", ...manifest fields when done}`.
+
+Set `STORAGE=s3://bucket/prefix` to upload outputs; done responses then include `filtered_audio_url` so clients can fall back to the filtered MP3 when their copy of the episode doesn't match the analyzed one (`audio.duration_sec` / `audio.sha256`).
 
 ## How It Works
 

@@ -17,6 +17,7 @@ Detects and cuts target segments from audio; the user-supplied detection config 
 - `detection/` — LLM verification via pydantic-ai (`LLM_MODEL`, any provider), self-distilled text classifier
 - `config/` — constants, detection config loader
 - `cloud/` — all cloud integrations live here, nothing cloud-touching outside it (today: optional S3 upload of outputs via `storage=`)
+- `server/` — optional FastAPI wrapper (`server` extra: fastapi + uvicorn); serves `segments.json` manifests, single-worker job queue, bearer auth via `API_TOKEN`
 - No bundled classifier: users supply a `.toon` config (names resolve from `./configs/`) or pass instructions/keywords directly; examples in `examples/configs/`
 - `tests/unit/` mirrors this layout (`tests/unit/cloud/test_storage.py` ↔ `cloud/storage.py`)
 

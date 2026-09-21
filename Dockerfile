@@ -20,14 +20,14 @@ WORKDIR /app
 
 # Dependency layer: cached unless the lockfile or python version changes
 COPY pyproject.toml uv.lock .python-version /app/
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project --extra server
 
 # Pre-download Whisper model during build (before src so code changes don't invalidate it)
 RUN /app/.venv/bin/python -c "from faster_whisper import WhisperModel; import os; os.makedirs('/app/local_models/tiny', exist_ok=True); WhisperModel('tiny', download_root='/app/local_models/tiny')"
 
 COPY src/ /app/src
 COPY examples/configs/ /app/configs
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra server
 
 
 # Let ctranslate2 find the pip-installed cuBLAS/cuDNN libraries
