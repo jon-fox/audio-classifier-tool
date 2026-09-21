@@ -7,11 +7,11 @@ Runs locally by default: one audio file in, filtered audio out. Needs an OpenAI 
 ## Quick Start
 
 ```bash
-uv sync
 export OPENAI_API_KEY=<your-key>
+export PAYLOAD='{"source": "My Show", "name": "Episode 1", "audio_url": "<mp3-url>"}'
 
-PAYLOAD='{"source": "My Show", "name": "Episode 1", "audio_url": "<mp3-url>"}' \
-  uv run audioclassifier --detection examples/configs/ads.toon
+uv sync
+uv run audioclassifier --detection examples/configs/ads.toon
 ```
 
 Results land in `output/<source>/<name>/`: the original mp3, the cleaned `*_filtered.mp3`, a `segments.json` manifest (episode-absolute millisecond cut segments with confidence, plus the sha256/size/ETag identity of the exact copy analyzed — for clients that skip segments during playback instead of using the filtered file), and a `transcripts/` dir with what was transcribed and each LLM cut/keep decision (with reasoning). Or with Docker:
@@ -61,8 +61,20 @@ uv run python examples/process_audio.py "<mp3-url>"
 A FastAPI wrapper serves segment manifests to clients (e.g. podcast apps that skip ads client-side). Install the `server` extra and run it:
 
 ```bash
+export OPENAI_API_KEY=<your-key>
+export API_TOKEN=test
+export DETECTION_CONFIG=examples/configs/ads.toon
+
 uv sync --extra server
-API_TOKEN=<token> DETECTION_CONFIG=ads uv run uvicorn audioclassifier.server.app:app --host 0.0.0.0
+uv run uvicorn audioclassifier.server.app:app --port 8000
+```
+
+```bash
+curl -X POST localhost:8000/v1/episodes/analyze \
+  -H "Authorization: Bearer test" -H "Content-Type: application/json" \
+  -d '{"episode_id": "ep-1", "source": "My Show", "audio_url": "<mp3-url>"}'
+
+curl -H "Authorization: Bearer test" localhost:8000/v1/episodes/ep-1/segments
 ```
 
 Or `docker compose up server`. All requests need `Authorization: Bearer $API_TOKEN`.
