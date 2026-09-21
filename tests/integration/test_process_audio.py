@@ -30,3 +30,14 @@ def test_process_audio():
     assert result["output_path"].endswith("_filtered.mp3")
     assert 0 < result["filtered_duration"] <= result["original_duration"]
     assert result["seconds_removed"] >= 0
+
+    assert result["model_version"]
+    assert result["audio"]["source_url"] == url
+    assert len(result["audio"]["sha256"]) == 64
+    assert abs(result["audio"]["duration_sec"] - result["original_duration"]) < 0.2
+    for segment in result["ad_segments"]:
+        assert segment["kind"] == "ad"
+        assert 0 <= segment["start_ms"] < segment["end_ms"]
+    assert os.path.isfile(
+        os.path.join(os.path.dirname(result["output_path"]), "segments.json")
+    )

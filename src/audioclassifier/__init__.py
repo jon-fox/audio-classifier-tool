@@ -20,7 +20,10 @@ def process_audio(
     detection config's context-extraction prompt. storage: optional
     s3://bucket/prefix — outputs are uploaded under <prefix>/<source>/<name>/.
     Returns a dict with output_path, filtered_duration, original_duration,
-    seconds_removed, and (with storage) the uploaded S3 URIs.
+    seconds_removed, ad_segments (episode-absolute ms, also written to
+    <output_dir>/segments.json), audio (identity of the analyzed copy:
+    sha256/bytes/etag/duration), model_version, and (with storage) the
+    uploaded S3 URIs.
 
     Configure the "audioclassifier" logger to see progress; set OPENAI_API_KEY
     (or the provider key matching LLM_MODEL) before calling.

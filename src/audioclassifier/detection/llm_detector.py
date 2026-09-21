@@ -148,8 +148,9 @@ def get_specific_timestamps_using_llm(
     """Ask the LLM for ad ranges in a transcript segment.
 
     keyword_hits / audio_boundaries / classifier_ranges are advisory signals
-    included in the prompt. Returns a list of [start, end] second ranges to
-    cut (empty = keep all).
+    included in the prompt. Returns (cut_ranges, confidence_score) where
+    cut_ranges is a list of [start, end] second ranges to cut (empty = keep
+    all).
     """
     logger.info(f"Requesting timestamps for {filename}, sponsors: {sponsors}")
 
@@ -193,7 +194,7 @@ def get_specific_timestamps_using_llm(
     _write_decision(
         path, output, cut_ranges, keyword_hits, audio_boundaries, classifier_ranges
     )
-    return cut_ranges
+    return cut_ranges, output.confidence_score
 
 
 def _write_decision(

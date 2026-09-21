@@ -21,6 +21,7 @@ from audioclassifier.detection.llm_detector import (
 )
 from audioclassifier.detection.text_classifier import find_classifier_ranges
 from audioclassifier.logger.logger_setup import logger
+from audioclassifier.processing.manifest import episode_segments
 
 # Compiled keywords, cached per config so a config change takes effect
 _keywords_cache = (None, None)
@@ -194,7 +195,7 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
     with open(transcript_path, "w", encoding="utf-8") as file:
         json.dump(transcript, file, indent=2, ensure_ascii=False)
 
-    cut_ranges = get_specific_timestamps_using_llm(
+    cut_ranges, confidence = get_specific_timestamps_using_llm(
         f"transcript_{index}.json",
         transcript_path,
         sponsors,
@@ -204,11 +205,11 @@ def process_audio_segment(index, audio_segment, samplerate, sponsors, transcript
     )
     if not cut_ranges:
         logger.info(f"Segment {index}: nothing to cut")
-        return audio_segment
+        return audio_segment, [], confidence
 
     cut_ranges = _snap_cut_ranges(cut_ranges, result, audio_boundaries)
     logger.info(f"Segment {index}: cutting ranges (seconds): {cut_ranges}")
-    return _cut_ranges(audio_segment, cut_ranges, samplerate)
+    return _cut_ranges(audio_segment, cut_ranges, samplerate), cut_ranges, confidence
 
 
 def _snap_cut_ranges(cut_ranges, transcript, audio_boundaries):
@@ -274,14 +275,11 @@ def remove_ads_from_audio(audio_file, description, output_dir=None, output_name=
 
     This function takes an MP3 audio file as input, splits it into 10-minute segments,
     transcribes each segment, identifies ad timestamps in the transcription, and removes
-    the corresponding audio segments containing the ads. The resulting audio file without
-    ads is saved as "finished_audio_without_ads.mp3".
+    the corresponding audio segments containing the ads.
 
-    Args:
-        None
-
-    Returns:
-        None
+    Returns (filtered_duration, original_duration, output_file_path,
+    ad_segments, analysis_gaps) — ad_segments/analysis_gaps are
+    episode-absolute millisecond dicts (see processing/manifest.py).
     """
     if output_dir is None:
         output_dir = FINISHED_MP3_DIR
@@ -339,21 +337,31 @@ def remove_ads_from_audio(audio_file, description, output_dir=None, output_name=
                 f"Processing segment for segment index {segment_index}, for transcript_{segment_index}_logging.json"
             )
             try:
-                result = future.result()
-                results.append(
-                    (segment_index, result)
-                )  # Store results along with their original index
+                cleaned, cut_ranges, confidence = future.result()
+                results.append((segment_index, cleaned, cut_ranges, confidence))
             except Exception as exc:
                 logger.error(f"Segment {segment_index} generated an exception: {exc}")
                 logger.error(traceback.format_exc())
                 # Keep the original segment rather than dropping this chunk of
-                # the audio from the output
-                results.append((segment_index, segments[segment_index]))
+                # the audio from the output; cut_ranges=None marks the chunk
+                # as unanalyzed in the manifest
+                results.append((segment_index, segments[segment_index], None, None))
         # executor.shutdown(wait=True)
     logger.info(f"Finished processing audio segments, exporting finished mp3")
     results.sort(key=lambda x: x[0])
     # concatenate the segments without ads
     finished_audio_without_ads = np.concatenate([x[1] for x in results])
+
+    ad_segments, analysis_gaps = episode_segments(
+        [
+            {
+                "length_sec": len(segments[index]) / samplerate,
+                "cut_ranges": cut_ranges,
+                "confidence": confidence,
+            }
+            for index, _, cut_ranges, confidence in results
+        ]
+    )
 
     output_file_path = os.path.abspath(
         os.path.join(output_dir, f"{output_name}_filtered.mp3")
@@ -368,4 +376,10 @@ def remove_ads_from_audio(audio_file, description, output_dir=None, output_name=
     finished_duration = len(finished_audio_without_ads) / samplerate
     logger.info(f"Audio with ads duration: {original_duration} seconds")
     logger.info(f"Finished audio without ads duration: {finished_duration} seconds")
-    return finished_duration, original_duration, output_file_path
+    return (
+        finished_duration,
+        original_duration,
+        output_file_path,
+        ad_segments,
+        analysis_gaps,
+    )

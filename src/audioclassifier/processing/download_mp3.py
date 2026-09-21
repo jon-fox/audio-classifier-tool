@@ -1,3 +1,4 @@
+import hashlib
 import os
 import requests
 from audioclassifier.logger.logger_setup import logger
@@ -20,15 +21,23 @@ def download_audio(filename, audio_url, save_path):
         response = requests.get(audio_url)
         if response.status_code == 200:
             logger.info(f"Writing audio to file {file_path}")
+            content = response.content
             # Write the content to a new file in binary write mode
             with open(file_path, "wb") as file:
-                file.write(response.content)
+                file.write(content)
             logger.info(f"Audio saved to {file_path}")
-            logger.info(f"File size: {len(response.content)} bytes")
-            return (
-                os.path.getsize(file_path),
-                file_path,
-            )  # returning file size and file path
+            logger.info(f"File size: {len(content)} bytes")
+            # Identity of the exact bytes analyzed — with dynamic ad insertion
+            # two downloads of the same episode differ, so timestamps are only
+            # valid against this copy
+            identity = {
+                "bytes": len(content),
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "etag": response.headers.get("ETag"),
+                "content_length": response.headers.get("Content-Length"),
+                "last_modified": response.headers.get("Last-Modified"),
+            }
+            return os.path.getsize(file_path), file_path, identity
         else:
             error_msg = f"Failed to download the audio. Response status code: {response.status_code}"
             logger.error(error_msg)
