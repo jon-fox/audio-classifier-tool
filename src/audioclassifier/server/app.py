@@ -24,6 +24,7 @@ from audioclassifier import process_audio
 from audioclassifier.config.constants import FINISHED_MP3_DIR
 from audioclassifier.logger.logger_setup import configure_logging, logger
 from audioclassifier.processing import manifest
+from audioclassifier.processing.progress import read_phase
 from audioclassifier.util import sanitize_name
 
 STATUS_FILENAME = "status.json"
@@ -62,6 +63,7 @@ class AnalyzeRequest(BaseModel):
     audio_url: str
     duration_sec: float | None = None
     description: str | None = None
+    force: bool = False
 
 
 def _episode_dir(source, episode_id):
@@ -89,28 +91,16 @@ def _read_status(episode_dir):
         return None
 
 
-def _progress(episode_dir):
-    """Fraction of analysis chunks finished, from the per-chunk decision files the
-    pipeline writes as it works. Needs duration_sec from the analyze request to know
-    the expected chunk count; capped below 1.0 because cutting/encoding follows."""
-    status = _read_status(episode_dir) or {}
-    duration = status.get("duration_sec")
-    if not duration:
-        return None
-    expected = max(int(duration // 600) + 1, 1)
-    transcripts_dir = os.path.join(episode_dir, "transcripts")
-    try:
-        done = len([f for f in os.listdir(transcripts_dir) if f.endswith("_decision.json")])
-    except OSError:
-        done = 0
-    return round(min(done / expected, 0.95), 2)
-
-
 def _processing_response(episode_dir):
+    """The pipeline analyzes all chunks in parallel, so per-chunk counts do not make a
+    meaningful bar; report the coarse phase (downloading/analyzing/finishing) it records
+    instead. The client turns the phase into a label and the fraction into a fill."""
     content = {"status": "processing"}
-    progress = _progress(episode_dir)
-    if progress is not None:
-        content["progress"] = progress
+    phase = read_phase(episode_dir)
+    if phase:
+        content["phase"] = phase.get("phase")
+        if phase.get("progress") is not None:
+            content["progress"] = phase["progress"]
     return content
 
 
@@ -162,8 +152,8 @@ def analyze(request: AnalyzeRequest):
     episode_dir = _episode_dir(request.source, request.episode_id)
     data = manifest.read_manifest(episode_dir)
     # Idempotent: a manifest from the current classifier setup is served as-is;
-    # a stale model_version re-enqueues
-    if data and data.get("model_version") == _model_version():
+    # a stale model_version, or an explicit force (re-zap), re-enqueues.
+    if not request.force and data and data.get("model_version") == _model_version():
         return _done_response(episode_dir, data)
 
     with _active_lock:

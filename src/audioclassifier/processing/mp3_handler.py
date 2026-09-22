@@ -9,6 +9,7 @@ from audioclassifier.logger.logger_setup import logger
 from audioclassifier.processing.audio_processor import remove_ads_from_audio
 from audioclassifier.processing.download_mp3 import download_audio
 from audioclassifier.processing.manifest import write_manifest
+from audioclassifier.processing.progress import report_phase
 from audioclassifier.util import sanitize_name
 
 
@@ -21,6 +22,9 @@ def mp3_handler(source, description, audio_hash, audio_url, name=None):
     try:
         start_time = time.time()
         logger.info(f"Removing target segments from {source} / {name}")
+
+        output_dir = os.path.join(FINISHED_MP3_DIR, source, sanitize_name(name))
+        report_phase(output_dir, "downloading")
 
         try:
             file_size, local_path, audio_identity = download_audio(
@@ -36,7 +40,7 @@ def mp3_handler(source, description, audio_hash, audio_url, name=None):
             )
             raise e
 
-        output_dir = os.path.join(FINISHED_MP3_DIR, source, sanitize_name(name))
+        report_phase(output_dir, "analyzing")
 
         try:
             (
@@ -66,6 +70,7 @@ def mp3_handler(source, description, audio_hash, audio_url, name=None):
             "duration_sec": round(original_duration, 1),
             **audio_identity,
         }
+        report_phase(output_dir, "finishing")
         manifest = write_manifest(
             output_dir,
             audio,
